@@ -1,7 +1,6 @@
 // Path: digitalavenger/invoice/invoice-8778080b2e82e01b0e0b1db4cbffc77385999a44/src/components/Invoice/InvoiceForm.tsx
 
 import React, { useState, useEffect } from 'react';
-// Import getDoc for reading a single document
 import { collection, addDoc, updateDoc, doc, getDoc, getDocs, query, orderBy, limit, runTransaction } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,7 +12,7 @@ import { generatePDF } from '../../utils/pdfGenerator';
 interface InvoiceFormProps {
   invoice?: Invoice;
   onSave?: (invoice: Invoice) => void;
-  onCancel?: () => void;
+  onCancel?: () => void; // This prop will be used for the Cancel button
 }
 
 const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) => {
@@ -53,60 +52,44 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
   });
 
   useEffect(() => {
-    // Fetch customers and company settings first on component mount
     fetchCustomers();
     fetchCompanySettings();
   }, []);
 
   useEffect(() => {
-    // This effect runs when the 'invoice' prop changes (for editing)
-    // or when 'companySettings' or 'currentUser' become available (for new invoice numbering)
     if (invoice) {
-      setFormData(invoice); // If editing, load existing invoice data
+      setFormData(invoice);
     } else {
-      // If creating a new invoice, generate the initial invoice number for display
-      // only after company settings and current user are loaded
       if (companySettings && currentUser?.uid) {
-        // We only fetch the *next* number for display, not increment the DB yet
         generateNextInvoiceNumberForDisplay();
       }
     }
-  }, [invoice, companySettings, currentUser]); // Depend on these states/props
+  }, [invoice, companySettings, currentUser]);
 
-  // This function only fetches the next sequential invoice number for DISPLAY.
-  // It DOES NOT increment the counter in the database yet.
   const generateNextInvoiceNumberForDisplay = async () => {
-    // Fallback if settings or user are not loaded
     if (!currentUser?.uid || !companySettings?.invoicePrefix) {
       console.warn('Cannot generate invoice number for display: Company settings or user not loaded yet.');
       setFormData(prev => ({
         ...prev,
-        invoiceNumber: `${companySettings?.invoicePrefix || 'INV'}INV${new Date().getFullYear()}${Math.floor(Math.random() * 9999).toString().padStart(4, '0')}` // Fallback random
+        invoiceNumber: `${companySettings?.invoicePrefix || 'INV'}INV${new Date().getFullYear()}${Math.floor(Math.random() * 9999).toString().padStart(4, '0')}`
       }));
       return;
     }
 
     try {
       const currentYear = new Date().getFullYear();
-      // Reference to the specific yearly counter document
       const counterDocRef = doc(db, `users/${currentUser.uid}/invoice_counters`, String(currentYear));
       
-      // Use getDoc to read a single document
       const counterDoc = await getDoc(counterDocRef);
       let currentCount = 0;
 
-      // If the counter document exists, get its currentCount; otherwise, it's 0 (meaning next will be 1)
       if (counterDoc.exists()) {
         currentCount = counterDoc.data()?.currentCount || 0;
       }
 
-      // Calculate the next number for display (currentCount + 1)
       const nextSequenceNumber = currentCount + 1; 
 
-      // Pad the number with leading zeros (e.g., 1 -> "0001", 13 -> "0013")
       const paddedNumber = String(nextSequenceNumber).padStart(4, '0');
-      
-      // Construct the invoice number using prefix, year, and padded number
       const newInvoiceNumber = `${companySettings.invoicePrefix}INV${currentYear}${paddedNumber}`;
       
       setFormData(prev => ({
@@ -115,7 +98,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
       }));
     } catch (error) {
       console.error('Error generating invoice number for display:', error);
-      // Fallback in case of error during display number generation
       setFormData(prev => ({
         ...prev,
         invoiceNumber: `${companySettings.invoicePrefix || 'INV'}INV${new Date().getFullYear()}${Math.floor(Math.random() * 9999).toString().padStart(4, '0')}`
@@ -133,8 +115,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
         ...doc.data()
       })) as Customer[];
       setCustomers(customersList);
-      // Debugging: Check if customers are fetched
-      console.log('Fetched customers:', customersList);
+      console.log('Fetched customers:', customersList); // Debugging
     } catch (error) {
       console.error('Error fetching customers:', error);
     }
@@ -147,11 +128,8 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
       if (!querySnapshot.empty) {
         const settings = querySnapshot.docs[0].data() as CompanySettings;
         setCompanySettings(settings);
-        // Debugging: Check if company settings are fetched
-        console.log('Fetched company settings:', settings);
+        console.log('Fetched company settings:', settings); // Debugging
       } else {
-        // If no settings document exists, provide a default invoicePrefix
-        // Ensure all properties match CompanySettings interface to avoid type errors in other parts
         setCompanySettings({ 
           invoicePrefix: 'INV',
           name: '', address: '', phone: '', email: '', website: '', gst: '', pan: '', logoUrl: '',
@@ -160,7 +138,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
       }
     } catch (error) {
       console.error('Error fetching company settings:', error);
-      // Fallback on error, ensure all properties are present
       setCompanySettings({ 
         invoicePrefix: 'INV',
         name: '', address: '', phone: '', email: '', website: '', gst: '', pan: '', logoUrl: '',
@@ -187,7 +164,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
       [field]: value
     };
 
-    // Recalculate amounts when quantity, rate, or gstRate changes
     if (field === 'quantity' || field === 'rate' || field === 'gstRate') {
       const quantity = Number(items[index].quantity);
       const rate = Number(items[index].rate);
@@ -200,7 +176,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
       items[index].gstAmount = gstAmount;
     }
 
-    // Recalculate totals after item change
     const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
     const totalGst = items.reduce((sum, item) => sum + item.gstAmount, 0);
     const total = subtotal + totalGst;
@@ -216,7 +191,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
 
   const addItem = () => {
     const newItem: InvoiceItem = {
-      id: Date.now().toString(), // Unique ID for new item
+      id: Date.now().toString(),
       description: '',
       quantity: 1,
       rate: 0,
@@ -233,9 +208,8 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
 
   const removeItem = (index: number) => {
     const items = [...(formData.items || [])];
-    items.splice(index, 1); // Remove item at specified index
+    items.splice(index, 1);
 
-    // Recalculate totals after item removal
     const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
     const totalGst = items.reduce((sum, item) => sum + item.gstAmount, 0);
     const total = subtotal + totalGst;
@@ -250,66 +224,58 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
   };
 
   const handleSave = async () => {
-    setLoading(true); // Start loading
+    setLoading(true);
 
     try {
       let invoiceDataToSave = {
         ...formData,
-        updatedAt: new Date().toISOString(), // Always update 'updatedAt'
-        createdAt: formData.createdAt || new Date().toISOString() // Set 'createdAt' only if new invoice
+        updatedAt: new Date().toISOString(),
+        createdAt: formData.createdAt || new Date().toISOString()
       };
 
       if (invoice?.id) {
-        // If 'invoice.id' exists, it's an UPDATE of an existing invoice
         await updateDoc(doc(db, `users/${currentUser?.uid}/invoices`, invoice.id), invoiceDataToSave);
       } else {
-        // If 'invoice.id' does NOT exist, it's a CREATE of a new invoice
         if (!currentUser?.uid || !companySettings?.invoicePrefix) {
-          throw new Error('User or company settings not loaded for new invoice creation. Cannot save.');
+          throw new Error('User or company settings not loaded for new invoice creation.');
         }
 
         const currentYear = new Date().getFullYear();
         const counterDocRef = doc(db, `users/${currentUser.uid}/invoice_counters`, String(currentYear));
         
-        let finalInvoiceNumber: string = ''; // Initialize to ensure it's defined
+        let finalInvoiceNumber: string = '';
 
-        // Use a Firestore transaction to atomically increment the counter
         await runTransaction(db, async (transaction) => {
           const counterDoc = await transaction.get(counterDocRef);
           let nextSequenceNumber: number;
 
           if (!counterDoc.exists()) {
-            // If counter for the current year doesn't exist, start from 1
             nextSequenceNumber = 1;
             transaction.set(counterDocRef, { currentCount: nextSequenceNumber });
           } else {
-            // Increment existing counter
             const data = counterDoc.data();
-            nextSequenceNumber = (data?.currentCount || 0) + 1; // Ensure default to 0 if undefined
+            nextSequenceNumber = (data?.currentCount || 0) + 1;
             transaction.update(counterDocRef, { currentCount: nextSequenceNumber });
           }
           
-          // Format the number using the incremented sequence
           const paddedNumber = String(nextSequenceNumber).padStart(4, '0');
           finalInvoiceNumber = `${companySettings.invoicePrefix}INV${currentYear}${paddedNumber}`;
         });
 
-        // Assign the newly generated and incremented invoice number to the data before adding
         invoiceDataToSave = {
           ...invoiceDataToSave,
-          invoiceNumber: finalInvoiceNumber // Use the number generated by the transaction
+          invoiceNumber: finalInvoiceNumber
         };
 
-        // Add the new invoice document to Firestore
         await addDoc(collection(db, `users/${currentUser?.uid}/invoices`), invoiceDataToSave);
       }
 
-      onSave?.(invoiceDataToSave as Invoice); // Call onSave callback with the final saved invoice data
+      onSave?.(invoiceDataToSave as Invoice);
     } catch (error) {
       console.error('Error saving invoice:', error);
       alert(`Error saving invoice: ${error.message || 'Please try again.'}`);
     } finally {
-      setLoading(false); // End loading
+      setLoading(false);
     }
   };
 
@@ -318,7 +284,9 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
       alert('Please configure company settings first');
       return;
     }
-
+    // Debugging: Check company settings before PDF generation
+    console.log('Company Settings before PDF generation (handleDownloadPDF):', companySettings);
+    
     try {
       await generatePDF(formData as Invoice, companySettings);
     } catch (error) {
@@ -350,6 +318,14 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
               <Save className="w-4 h-4 mr-2" />
               {loading ? 'Saving...' : 'Save Invoice'}
             </button>
+            {onCancel && ( // Display Cancel button if onCancel prop is provided
+              <button
+                onClick={onCancel}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+              >
+                Cancel
+              </button>
+            )}
           </div>
         </div>
       </div>
