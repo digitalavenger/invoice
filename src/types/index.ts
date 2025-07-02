@@ -1,3 +1,5 @@
+// Path: digitalavenger/invoice/invoice-8778080b2e82e01b0e0b1db4cbffc77385999a44/src/types/index.ts
+
 export interface CompanySettings {
   id?: string;
   name: string;
@@ -7,7 +9,15 @@ export interface CompanySettings {
   website: string;
   gst: string;
   pan: string;
-  logoUrl?: string;
+  logoUrl?: string; // Keep this for display on settings page if needed
+  logoBase64?: string; // NEW: To store the Base64 representation of the logo
+  invoicePrefix?: string; // Existing: Prefix for invoice numbers
+
+  // Bank details fields
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  branchName?: string;
 }
 
 export interface Customer {
@@ -24,7 +34,7 @@ export interface InvoiceItem {
   description: string;
   quantity: number;
   rate: number;
-  amount: number;
+  amount: 0;
   gstRate: number;
   gstAmount: number;
 }

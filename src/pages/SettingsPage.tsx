@@ -1,3 +1,5 @@
+// Path: digitalavenger/invoice/invoice-8778080b2e82e01b0e0b1db4cbffc77385999a44/src/pages/SettingsPage.tsx
+
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -19,7 +21,13 @@ const SettingsPage: React.FC = () => {
     website: '',
     gst: '',
     pan: '',
-    logoUrl: ''
+    logoUrl: '',
+    logoBase64: '', // Initialize new field
+    invoicePrefix: '',
+    bankName: '',
+    accountNumber: '',
+    ifscCode: '',
+    branchName: ''
   });
 
   useEffect(() => {
@@ -40,10 +48,22 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleLogoUpload = async (file: File): Promise<string> => {
+  // Function to convert File to Base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleLogoUpload = async (file: File): Promise<{ url: string, base64: string }> => {
     const logoRef = ref(storage, `logos/${currentUser?.uid}/${file.name}`);
     await uploadBytes(logoRef, file);
-    return await getDownloadURL(logoRef);
+    const url = await getDownloadURL(logoRef);
+    const base64 = await fileToBase64(file); // Convert to Base64
+    return { url, base64 };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,20 +72,31 @@ const SettingsPage: React.FC = () => {
 
     try {
       let logoUrl = formData.logoUrl;
-      
+      let logoBase64 = formData.logoBase64; // Get existing Base64
+
       if (logoFile) {
-        logoUrl = await handleLogoUpload(logoFile);
+        const result = await handleLogoUpload(logoFile);
+        logoUrl = result.url;
+        logoBase64 = result.base64; // Set new Base64
       }
 
       const settingsData = {
         ...formData,
-        logoUrl
+        logoUrl,
+        logoBase64 // Save Base64 to Firebase
       };
 
+      if (!currentUser?.uid) { // Ensure user is logged in
+        console.error("Error saving settings: User not logged in (UID is null).");
+        alert('Error saving settings: You must be logged in.');
+        setLoading(false);
+        return;
+      }
+
       if (settingsId) {
-        await updateDoc(doc(db, `users/${currentUser?.uid}/settings`, settingsId), settingsData);
+        await updateDoc(doc(db, `users/${currentUser.uid}/settings`, settingsId), settingsData);
       } else {
-        const docRef = await addDoc(collection(db, `users/${currentUser?.uid}/settings`), settingsData);
+        const docRef = await addDoc(collection(db, `users/${currentUser.uid}/settings`), settingsData);
         setSettingsId(docRef.id);
       }
 
@@ -73,8 +104,8 @@ const SettingsPage: React.FC = () => {
       setLogoFile(null);
       alert('Settings saved successfully!');
     } catch (error) {
-      console.error('Error saving settings:', error);
-      alert('Error saving settings. Please try again.');
+      console.error('Detailed Error saving settings:', error); // Log the actual error
+      alert(`Error saving settings: ${error.message || 'Please try again.'}`);
     } finally {
       setLoading(false);
     }
@@ -104,9 +135,10 @@ const SettingsPage: React.FC = () => {
               Company Logo
             </label>
             <div className="flex items-center space-x-4">
-              {formData.logoUrl && (
+              {/* Display logo from logoUrl or logoBase64 if available */}
+              {(formData.logoUrl || formData.logoBase64) && (
                 <img
-                  src={formData.logoUrl}
+                  src={formData.logoUrl || formData.logoBase64}
                   alt="Company Logo"
                   className="h-16 w-16 object-contain border border-gray-200 rounded"
                 />
@@ -208,6 +240,19 @@ const SettingsPage: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+            {/* Invoice Prefix field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Invoice Prefix (e.g., VRI)
+              </label>
+              <input
+                type="text"
+                value={formData.invoicePrefix || ''}
+                onChange={(e) => setFormData({ ...formData, invoicePrefix: e.target.value.toUpperCase() })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                maxLength={5}
+              />
+            </div>
           </div>
 
           <div>
@@ -222,6 +267,58 @@ const SettingsPage: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
+
+          {/* Bank Account Details */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Bank Account Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Bank Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.bankName || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, bankName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Account Number
+                </label>
+                <input
+                  type="text"
+                  value={formData.accountNumber || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, accountNumber: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  IFSC Code
+                </label>
+                <input
+                  type="text"
+                  value={formData.ifscCode || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, ifscCode: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Branch Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.branchName || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, branchName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+
 
           <div className="flex justify-end">
             <button

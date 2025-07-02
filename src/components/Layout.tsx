@@ -1,7 +1,9 @@
+// Path: digitalavenger/invoice/invoice-8778080b2e82e01b0e0e1db4cbffc77385999a44/src/components/Layout.tsx
+
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'; // Use NavLink for active styling
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, Settings, Users, LogOut, Menu, X } from 'lucide-react';
+import { FileText, Settings, Users, LogOut, Menu, X, LayoutDashboard } from 'lucide-react'; // NEW IMPORT: LayoutDashboard
 import { useState } from 'react';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -20,6 +22,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   };
 
   const navigation = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }, // NEW NAVIGATION ITEM
     { name: 'Invoices', href: '/invoices', icon: FileText },
     { name: 'Customers', href: '/customers', icon: Users },
     { name: 'Settings', href: '/settings', icon: Settings },
@@ -41,19 +44,19 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             {navigation.map((item) => {
               const Icon = item.icon;
               return (
-                <Link
+                <NavLink // Use NavLink for active class handling
                   key={item.name}
                   to={item.href}
                   onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    location.pathname === item.href
+                  className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive
                       ? 'bg-blue-100 text-blue-700'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   <Icon className="mr-3 h-5 w-5" />
                   {item.name}
-                </Link>
+                </NavLink>
               );
             })}
           </nav>
@@ -97,17 +100,17 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     const Icon = item.icon;
                     return (
                       <li key={item.name}>
-                        <Link
+                        <NavLink // Use NavLink for active class handling
                           to={item.href}
-                          className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${
-                            location.pathname === item.href
+                          className={({ isActive }) => `group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${
+                            isActive
                               ? 'bg-blue-50 text-blue-700'
                               : 'text-gray-700 hover:text-blue-700 hover:bg-gray-50'
                           }`}
                         >
                           <Icon className="h-6 w-6 shrink-0" />
                           {item.name}
-                        </Link>
+                        </NavLink>
                       </li>
                     );
                   })}
