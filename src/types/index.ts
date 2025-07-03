@@ -1,94 +1,103 @@
-// Path: digitalavenger/invoice/invoice-8778080b2e82e01b0e0b1db4cbffc77385999a44/src/types/index.ts
+// Path: digitalavenger/invoice/invoice-b213b5ef4ea8be1df52b3413df2adca6ea3cb411/src/types/index.ts
+
+import { Timestamp } from 'firebase/firestore';
 
 export interface CompanySettings {
-  id?: string;
   name: string;
   address: string;
   phone: string;
   email: string;
-  website: string;
-  gst: string;
-  pan: string;
-  logoUrl?: string;
-  logoBase64?: string;
-  invoicePrefix?: string;
-
+  website?: string;
+  gst?: string;
+  pan?: string;
   bankName?: string;
   accountNumber?: string;
   ifscCode?: string;
   branchName?: string;
+  currency?: string;
+  logoUrl?: string;
+  logoBase64?: string; // Add logoBase64 here
+  invoicePrefix?: string; // Add invoicePrefix here
 }
 
 export interface Customer {
   id?: string;
+  userId: string;
   name: string;
-  address: string;
-  phone: string;
   email: string;
+  phone: string;
+  address: string;
   gst?: string;
+  createdAt: Timestamp;
 }
 
 export interface InvoiceItem {
-  id: string;
   description: string;
   quantity: number;
   rate: number;
-  amount: number;
   gstRate: number;
   gstAmount: number;
+  amount: number;
 }
 
 export interface Invoice {
   id?: string;
+  userId: string;
   invoiceNumber: string;
-  date: string;
-  dueDate: string;
-  customerId: string;
-  customer: Customer;
+  customer: {
+    id: string; // Customer ID from your customers collection
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+    gst?: string;
+  };
+  date: string; // ISO date string, e.g., 'YYYY-MM-DD'
+  dueDate: string; // ISO date string
   items: InvoiceItem[];
   subtotal: number;
   totalGst: number;
   total: number;
-  notes?: string;
   status: 'draft' | 'sent' | 'paid';
-  createdAt: string;
-  updatedAt: string;
+  notes?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
-// NEW TYPES FOR DYNAMIC LEAD MANAGEMENT
 export interface ServiceOption {
-  id?: string;
+  id: string;
   name: string;
-  createdAt?: string;
+  createdAt?: Timestamp;
 }
 
 export interface StatusOption {
-  id?: string;
+  id: string;
   name: string;
+  color: string;
   order: number;
   isDefault?: boolean;
-  color?: string; // NEW: Color for this status
-  createdAt?: string;
+  createdAt?: Timestamp;
 }
 
-export interface Lead {
-  id?: string;
-  leadName: string;
-  leadDate: string; // Stored as 'YYYY-MM-DD'
-  mobileNumber: string;
-  emailAddress: string;
-  serviceRequired: string[]; // Changed to string[] for dynamic services
-  budget?: number;
-  leadStatus: string; // Changed to string for dynamic statuses
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// The LeadStatus enum can be kept for initial defaults if desired, but not strictly typed now
+// NEW: Define and export LeadStatus enum
 export enum LeadStatus {
   CREATED = 'Created',
   FOLLOWUP = 'Followup',
   CLIENT = 'Client',
   REJECTED = 'Rejected',
+}
+
+export interface Lead {
+  id?: string;
+  userId: string;
+  leadDate: string; // ISO date string, e.g., 'YYYY-MM-DD'
+  name: string;
+  mobileNumber: string;
+  emailAddress: string;
+  services: string[]; // Array of service names (e.g., ['SEO', 'PPC'])
+  leadStatus: string; // Corresponds to StatusOption.name
+  notes?: string; // NEW: Notes for the lead
+  lastFollowUpDate?: string; // NEW: Recent followup date
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }

@@ -235,7 +235,7 @@ const SettingsPage: React.FC = () => {
               type="button"
               onClick={() => setActiveTab('leads')}
               className={`flex items-center w-full px-3 py-2 rounded-md text-left font-medium transition-colors ${
-                activeTab === 'leads' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+                activeTab === 'leads' ? 'bg-secondary text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-primary' // Changed to bg-secondary text-primary, hover:text-primary
               }`}
             >
               <Briefcase className="w-5 h-5 mr-3" />
@@ -247,7 +247,7 @@ const SettingsPage: React.FC = () => {
               type="button"
               onClick={() => setActiveTab('invoice')}
               className={`flex items-center w-full px-3 py-2 rounded-md text-left font-medium transition-colors ${
-                activeTab === 'invoice' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+                activeTab === 'invoice' ? 'bg-secondary text-primary' : 'text-gray-700 hover:bg-gray-100 hover:text-primary' // Changed to bg-secondary text-primary, hover:text-primary
               }`}
             >
               <FileText className="w-5 h-5 mr-3" />
@@ -270,7 +270,7 @@ const SettingsPage: React.FC = () => {
             {/* Dynamic Service Options Management */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <Plus className="w-5 h-5 mr-2 text-blue-600" /> Manage Services
+                <Plus className="w-5 h-5 mr-2 text-primary" /> Manage Services {/* Changed to text-primary */}
               </h3>
               <div className="flex space-x-2 mb-4">
                 <input
@@ -278,10 +278,10 @@ const SettingsPage: React.FC = () => {
                   placeholder="New service name"
                   value={newServiceName}
                   onChange={(e) => setNewServiceName(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-accent focus:border-accent" // Changed to focus:ring-accent focus:border-accent
                 />
                 <button type="button" onClick={handleAddService} disabled={loading || !newServiceName.trim()}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-gray-800 disabled:opacity-50"> {/* Changed to bg-primary, hover:bg-gray-800 */}
                   Add
                 </button>
               </div>
@@ -302,7 +302,7 @@ const SettingsPage: React.FC = () => {
             {/* Dynamic Lead Status Management */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <Plus className="w-5 h-5 mr-2 text-green-600" /> Manage Lead Statuses
+                <Plus className="w-5 h-5 mr-2 text-primary" /> Manage Lead Statuses {/* Changed to text-primary */}
               </h3>
               <div className="flex space-x-2 mb-4">
                 <input
@@ -310,7 +310,7 @@ const SettingsPage: React.FC = () => {
                   placeholder="New status name"
                   value={newStatusName}
                   onChange={(e) => setNewStatusName(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-accent focus:border-accent" // Changed to focus:ring-accent focus:border-accent
                 />
                 <input
                   type="color"
@@ -320,7 +320,7 @@ const SettingsPage: React.FC = () => {
                   title="Choose status color"
                 />
                 <button type="button" onClick={handleAddStatus} disabled={loading || !newStatusName.trim()}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50">
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-gray-800 disabled:opacity-50"> {/* Changed to bg-primary, hover:bg-gray-800 */}
                   Add
                 </button>
               </div>
@@ -372,36 +372,36 @@ const SettingsPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Company Name *</label>
-                <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent focus:border-accent" /> {/* Changed to focus:ring-accent focus:border-accent */}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent focus:border-accent" /> {/* Changed to focus:ring-accent focus:border-accent */}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
-                <input type="text" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                <input type="text" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent focus:border-accent" /> {/* Changed to focus:ring-accent focus:border-accent */}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-                <input type="url" value={formData.website} onChange={(e) => setFormData({ ...formData, website: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                <input type="url" value={formData.website} onChange={(e) => setFormData({ ...formData, website: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent focus:border-accent" /> {/* Changed to focus:ring-accent focus:border-accent */}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">GST Number *</label>
-                <input type="text" required value={formData.gst} onChange={(e) => setFormData({ ...formData, gst: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                <input type="text" required value={formData.gst} onChange={(e) => setFormData({ ...formData, gst: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent focus:border-accent" /> {/* Changed to focus:ring-accent focus:border-accent */}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">PAN Number *</label>
-                <input type="text" required value={formData.pan} onChange={(e) => setFormData({ ...formData, pan: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                <input type="text" required value={formData.pan} onChange={(e) => setFormData({ ...formData, pan: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent focus:border-accent" /> {/* Changed to focus:ring-accent focus:border-accent */}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Prefix (e.g., VRI)</label>
-                <input type="text" value={formData.invoicePrefix || ''} onChange={(e) => setFormData({ ...formData, invoicePrefix: e.target.value.toUpperCase() })} className="w-full px-3 py-2 border border-gray-300 rounded-md" maxLength={5} />
+                <input type="text" value={formData.invoicePrefix || ''} onChange={(e) => setFormData({ ...formData, invoicePrefix: e.target.value.toUpperCase() })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent focus:border-accent" maxLength={5} /> {/* Changed to focus:ring-accent focus:border-accent */}
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
-              <textarea required rows={3} value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+              <textarea required rows={3} value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent focus:border-accent" /> {/* Changed to focus:ring-accent focus:border-accent */}
             </div>
 
             {/* Bank Account Details */}
@@ -410,25 +410,25 @@ const SettingsPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
-                  <input type="text" value={formData.bankName || ''} onChange={(e) => setFormData(prev => ({ ...prev, bankName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="text" value={formData.bankName || ''} onChange={(e) => setFormData(prev => ({ ...prev, bankName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent focus:border-accent" /> {/* Changed to focus:ring-accent focus:border-accent */}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
-                  <input type="text" value={formData.accountNumber || ''} onChange={(e) => setFormData(prev => ({ ...prev, accountNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="text" value={formData.accountNumber || ''} onChange={(e) => setFormData(prev => ({ ...prev, accountNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent focus:border-accent" /> {/* Changed to focus:ring-accent focus:border-accent */}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">IFSC Code</label>
-                  <input type="text" value={formData.ifscCode || ''} onChange={(e) => setFormData(prev => ({ ...prev, ifscCode: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="text" value={formData.ifscCode || ''} onChange={(e) => setFormData(prev => ({ ...prev, ifscCode: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent focus:border-accent" /> {/* Changed to focus:ring-accent focus:border-accent */}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Branch Name</label>
-                  <input type="text" value={formData.branchName || ''} onChange={(e) => setFormData(prev => ({ ...prev, branchName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="text" value={formData.branchName || ''} onChange={(e) => setFormData(prev => ({ ...prev, branchName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-accent focus:border-accent" /> {/* Changed to focus:ring-accent focus:border-accent */}
                 </div>
               </div>
             </div>
 
             <div className="flex justify-end">
-              <button type="submit" disabled={loading} className="inline-flex items-center px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
+              <button type="submit" disabled={loading} className="inline-flex items-center px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-gray-800 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent"> {/* Changed to bg-primary, hover:bg-gray-800, focus:ring-accent */}
                 <Save className="w-4 h-4 mr-2" /> {loading ? 'Saving...' : 'Save Invoice Settings'}
               </button>
             </div>

@@ -1,10 +1,8 @@
-// Path: digitalavenger/invoice/invoice-8778080b2e82e01b0e0b1db4cbffc77385999a44/src/components/Lead/LeadList.tsx
-
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy, Timestamp } from 'firebase/firestore'; // Added Timestamp import
 import { db } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
-import { Lead, ServiceOption, StatusOption } => '../../types'; // Import StatusOption
+import { Lead, ServiceOption, StatusOption } from '../../types';
 import { Edit, Trash2, PlusCircle, Search } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -12,9 +10,6 @@ interface LeadListProps {
   onEdit: (lead: Lead) => void;
   onNew: () => void;
 }
-
-// Service options will be fetched dynamically for filter dropdown
-// No longer need hardcoded serviceOptions array here
 
 const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
   const { currentUser } = useAuth();
@@ -25,6 +20,7 @@ const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
   const [filterDate, setFilterDate] = useState('');
   const [filterStatus, setFilterStatus] = useState<string | ''>('');
   const [filterService, setFilterService] = useState<string | ''>(''); // Changed to string for dynamic services
+  const [filterFollowupDate, setFilterFollowupDate] = useState(''); // NEW: Filter for followup date
 
   // Dynamic options for filters
   const [availableStatuses, setAvailableStatuses] = useState<StatusOption[]>([]);
@@ -42,10 +38,14 @@ const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
     setLoading(true);
     try {
       const leadsRef = collection(db, `users/${currentUser?.uid}/leads`);
-      const querySnapshot = await getDocs(leadsRef);
+      const q = query(leadsRef, orderBy('createdAt', 'desc')); // Order by creation time
+      const querySnapshot = await getDocs(q);
       const leadsList = querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        services: Array.isArray(doc.data().services) ? doc.data().services : [],
+        notes: doc.data().notes || '',
+        lastFollowUpDate: doc.data().lastFollowUpDate || '',
       })) as Lead[];
       setLeads(leadsList);
     } catch (error) {
@@ -65,7 +65,6 @@ const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
       setAvailableStatuses(statusesList);
     } catch (error) {
       console.error('Error fetching available statuses:', error);
-      // Fallback to hardcoded statuses if fetching fails (ensure IDs for keys)
       setAvailableStatuses([
         { id: 'default_created', name: 'Created', order: 1, isDefault: true, color: '#2563EB' },
         { id: 'default_followup', name: 'Followup', order: 2, color: '#FBBF24' },
@@ -85,7 +84,6 @@ const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
       setAvailableServicesForFilter(servicesList);
     } catch (error) {
       console.error('Error fetching available services for filter:', error);
-      // Fallback to hardcoded services if fetching fails
       setAvailableServicesForFilter([
         { id: 'seo', name: 'SEO' }, { id: 'ppc', name: 'PPC' },
         { id: 'smm', name: 'Social Media Marketing' }, { id: 'other', name: 'Other' }
@@ -94,214 +92,186 @@ const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
   };
 
   const handleDelete = async (leadId: string) => {
-    if (!window.confirm('Are you sure you want to delete this lead?')) {
-      return;
-    }
+    if (!window.confirm('Are you sure you want to delete this lead?')) return;
     if (!currentUser?.uid) return;
-    setLoading(true);
     try {
       await deleteDoc(doc(db, `users/${currentUser.uid}/leads`, leadId));
       setLeads(prev => prev.filter(lead => lead.id !== leadId));
     } catch (error) {
       console.error('Error deleting lead:', error);
-      alert('Failed to delete lead. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Handle inline status update
   const handleStatusChange = async (leadId: string, newStatus: string) => {
     if (!currentUser?.uid) return;
     try {
-      await updateDoc(doc(db, `users/${currentUser.uid}/leads`, leadId), { 
+      await updateDoc(doc(db, `users/${currentUser.uid}/leads`, leadId), {
         leadStatus: newStatus,
-        updatedAt: new Date().toISOString()
+        updatedAt: Timestamp.now(), 
       });
-      setLeads(prevLeads => prevLeads.map(lead =>
-        lead.id === leadId ? { ...lead, leadStatus: newStatus } : lead
-      ));
+      setLeads(prev =>
+        prev.map(lead => (lead.id === leadId ? { ...lead, leadStatus: newStatus } : lead))
+      );
     } catch (error) {
       console.error('Error updating lead status:', error);
-      alert('Failed to update lead status. Please try again.');
     }
+  };
+
+  // *** NEW FUNCTION TO HANDLE INLINE DATE UPDATES ***
+  const handleFollowupDateChange = async (leadId: string, newDate: string) => {
+    if (!currentUser?.uid || !newDate) return;
+    try {
+      const leadRef = doc(db, `users/${currentUser.uid}/leads`, leadId);
+      await updateDoc(leadRef, {
+        lastFollowUpDate: newDate,
+        updatedAt: Timestamp.now(),
+      });
+      // Update local state to show the change instantly without a full reload
+      setLeads(prevLeads =>
+        prevLeads.map(lead =>
+          lead.id === leadId ? { ...lead, lastFollowUpDate: newDate } : lead
+        )
+      );
+    } catch (error) {
+      console.error('Error updating follow-up date:', error);
+    }
+  };
+
+  const getStatusColorClass = (statusName: string) => {
+    const status = availableStatuses.find(s => s.name === statusName);
+    return status ? `bg-[${status.color}] text-white` : 'bg-gray-200 text-gray-800';
   };
 
   const filteredLeads = leads.filter(lead => {
-    const matchesSearch = 
-      lead.leadName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.emailAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.mobileNumber.includes(searchTerm);
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = searchTerm === '' ||
+      lead.name.toLowerCase().includes(searchLower) ||
+      lead.emailAddress.toLowerCase().includes(searchLower) ||
+      lead.mobileNumber.includes(searchTerm) ||
+      (lead.notes && lead.notes.toLowerCase().includes(searchLower));
 
-    const matchesDate = filterDate ? lead.leadDate === filterDate : true;
-    const matchesStatus = filterStatus ? lead.leadStatus === filterStatus : true;
-    const matchesService = filterService ? lead.serviceRequired.includes(filterService) : true;
+    const matchesDate = filterDate === '' || lead.leadDate === filterDate;
+    const matchesStatus = filterStatus === '' || lead.leadStatus === filterStatus;
+    const matchesService = filterService === '' || lead.services.includes(filterService);
+    const matchesFollowupDate = filterFollowupDate === '' || lead.lastFollowUpDate === filterFollowupDate;
 
-    return matchesSearch && matchesDate && matchesStatus && matchesService;
+    return matchesSearch && matchesDate && matchesStatus && matchesService && matchesFollowupDate;
   });
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+    return <div className="text-center py-8">Loading leads...</div>;
   }
 
-  // Helper to get status color dynamically from availableStatuses
-  const getLeadStatusColor = (statusName: string) => {
-    const statusOption = availableStatuses.find(s => s.name === statusName);
-    const defaultColor = 'bg-gray-100 text-gray-800'; // Fallback Tailwind classes
-    if (statusOption && statusOption.color) {
-      // Convert hex to background color style
-      // For dynamically generated styles based on hex, inline style or utility class mapping is needed
-      // Here we return the raw hex for inline style or map to a pre-defined Tailwind class
-      // For full flexibility, you'd define CSS variables or use a utility like tinycolor2
-      return `color: ${statusOption.color}; border: 1px solid ${statusOption.color}; background-color: ${statusOption.color}1A;`; // 1A is ~10% opacity for light background
-    }
-    // Fallback for default statuses or if color is missing
-    switch (statusName) {
-      case 'Created': return 'bg-blue-100 text-blue-800';
-      case 'Followup': return 'bg-yellow-100 text-yellow-800';
-      case 'Client': return 'bg-green-100 text-green-800';
-      case 'Rejected': return 'bg-red-100 text-red-800';
-      default: return defaultColor;
-    }
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Leads Management</h1>
-          <p className="text-gray-600">Track and manage your potential clients</p>
-        </div>
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Leads List</h2>
         <button
           onClick={onNew}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+          className="flex items-center px-4 py-2 bg-primary text-white rounded-md shadow-sm hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent"
         >
-          <PlusCircle className="w-4 h-4 mr-2" /> Add New Lead
+          <PlusCircle className="mr-2 h-5 w-5" />
+          Create New Lead
         </button>
       </div>
 
-      {/* Filter Section */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Filters remain unchanged */}
+        <div>
+          <label htmlFor="searchLeads" className="block text-sm font-medium text-gray-700 mb-1">Search Leads</label>
+          <div className="relative">
+            <input type="text" id="searchLeads" placeholder="Search by name, email, mobile, notes..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md"/>
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="h-5 w-5 text-gray-400" /></div>
           </div>
-          <input
-            type="text"
-            placeholder="Search leads..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          />
         </div>
         <div>
-          <input
-            type="date"
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm focus:ring-blue-500 focus:border-blue-500"
-          />
+          <label htmlFor="filterDate" className="block text-sm font-medium text-gray-700 mb-1">Filter by Lead Date</label>
+          <input type="date" id="filterDate" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"/>
         </div>
         <div>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">All Statuses</option>
-            {availableStatuses.map(status => (
-              <option key={status.id} value={status.name}>{status.name}</option>
-            ))}
-          </select>
+          <label htmlFor="filterStatus" className="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
+          <select id="filterStatus" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"><option value="">All Statuses</option>{availableStatuses.map(status => (<option key={status.id} value={status.name}>{status.name}</option>))}</select>
         </div>
         <div>
-          <select
-            value={filterService}
-            onChange={(e) => setFilterService(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">All Services</option>
-            {availableServicesForFilter.map(service => (
-              <option key={service.id} value={service.name}>{service.name}</option>
-            ))}
-          </select>
+          <label htmlFor="filterService" className="block text-sm font-medium text-gray-700 mb-1">Filter by Service</label>
+          <select id="filterService" value={filterService} onChange={(e) => setFilterService(e.target.value)} className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"><option value="">All Services</option>{availableServicesForFilter.map(service => (<option key={service.id} value={service.name}>{service.name}</option>))}</select>
+        </div>
+        <div>
+          <label htmlFor="filterFollowupDate" className="block text-sm font-medium text-gray-700 mb-1">Filter by Followup Date</label>
+          <input type="date" id="filterFollowupDate" value={filterFollowupDate} onChange={(e) => setFilterFollowupDate(e.target.value)} className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"/>
         </div>
       </div>
 
-      {filteredLeads.length === 0 ? (
-        <div className="text-center py-10 text-gray-500">No leads found matching your criteria.</div>
-      ) : (
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sr.No</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lead Date</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mobile Number</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email Address</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Services</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">Lead Status</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recent Followup Date</th>
+              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {filteredLeads.length === 0 ? (
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">S.No</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lead Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lead Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mobile Number</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email Address</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Required</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Budget</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <td colSpan={10} className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">No leads found.</td>
               </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredLeads.map((lead, index) => (
+            ) : (
+              filteredLeads.map((lead, index) => (
                 <tr key={lead.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{lead.leadName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{format(new Date(lead.leadDate), 'MMM dd,yyyy')}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{index + 1}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{lead.leadDate ? format(new Date(lead.leadDate), 'MMM dd, yyyy') : ''}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{lead.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{lead.mobileNumber}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{lead.emailAddress}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{lead.serviceRequired.join(', ')}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {lead.budget ? `₹${lead.budget.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {/* Inline Status Update Dropdown */}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{lead.services.join(', ')}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm min-w-[150px]">
                     <select
                       value={lead.leadStatus}
                       onChange={(e) => handleStatusChange(lead.id!, e.target.value)}
-                      style={availableStatuses.find(s => s.name === lead.leadStatus)?.color ? { backgroundColor: availableStatuses.find(s => s.name === lead.leadStatus)?.color + '1A', color: availableStatuses.find(s => s.name === lead.leadStatus)?.color, borderColor: availableStatuses.find(s => s.name === lead.leadStatus)?.color } : {}}
-                      className={`px-2 py-1 text-xs font-semibold rounded-full focus:outline-none ${!availableStatuses.find(s => s.name === lead.leadStatus)?.color ? 'bg-gray-100 text-gray-800' : ''}`} // Fallback Tailwind classes if no custom color
+                      className={`block py-1 px-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-accent focus:border-accent sm:text-sm ${getStatusColorClass(lead.leadStatus)}`}
+                      style={{ backgroundColor: availableStatuses.find(s => s.name === lead.leadStatus)?.color || 'transparent' }}
                     >
                       {availableStatuses.map(status => (
-                        <option key={status.id} value={status.name}>{status.name}</option>
+                        <option key={status.id} value={status.name} style={{ backgroundColor: '#ffffff', color: '#000000' }}>{status.name}</option>
                       ))}
                     </select>
                   </td>
+                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={lead.notes}>{lead.notes || 'N/A'}</td>
+                  
+                  {/* *** MODIFIED CELL FOR INLINE DATE EDITING *** */}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <input
+                      type="date"
+                      value={lead.lastFollowUpDate || ''}
+                      onChange={(e) => handleFollowupDateChange(lead.id!, e.target.value)}
+                      className="block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+                    />
+                  </td>
+
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button onClick={() => onEdit(lead)} className="text-indigo-600 hover:text-indigo-900">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDelete(lead.id!)} className="text-red-600 hover:text-red-900">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <button onClick={() => onEdit(lead)} className="text-accent hover:text-blue-900 mr-3" title="Edit Lead">
+                      <Edit className="h-5 w-5" />
+                    </button>
+                    <button onClick={() => handleDelete(lead.id!)} className="text-red-600 hover:text-red-900" title="Delete Lead">
+                      <Trash2 className="h-5 w-5" />
+                    </button>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
-};
-
-// Simplified to use dynamic colors from availableStatuses
-const getLeadStatusColor = (statusName: string) => {
-  // This function is now mostly a fallback if inline style is not used or availableStatuses not loaded
-  // The inline style in the JSX handles the custom color directly.
-  switch (statusName) {
-    case 'Created': return 'bg-blue-100 text-blue-800';
-    case 'Followup': return 'bg-yellow-100 text-yellow-800';
-    case 'Client': return 'bg-green-100 text-green-800';
-    case 'Rejected': return 'bg-red-100 text-red-800';
-    default: return 'bg-gray-100 text-gray-800';
-  }
 };
 
 export default LeadList;

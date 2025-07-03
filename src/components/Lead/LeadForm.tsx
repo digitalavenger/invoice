@@ -1,44 +1,42 @@
-// Path: digitalavenger/invoice/invoice-8778080b2e82e01b0e0b1db4cbffc77385999a44/src/components/Lead/LeadForm.tsx
-
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, updateDoc, doc, getDocs, query, orderBy } from 'firebase/firestore';
+import { Lead, ServiceOption, StatusOption } from '../../types';
 import { db } from '../../firebase/config';
+import { collection, addDoc, updateDoc, doc, Timestamp, query, orderBy, getDocs } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
-import { Lead, ServiceOption, StatusOption, LeadStatus } from '../../types';
 import { Save, X } from 'lucide-react';
 
 interface LeadFormProps {
-  lead?: Lead;
-  onSave?: () => void;
-  onCancel?: () => void;
+  currentLead: Lead | null; // Changed prop name to 'currentLead'
+  onSave: () => void;
+  onCancel: () => void;
 }
 
-const LeadForm: React.FC<LeadFormProps> = ({ lead, onSave, onCancel }) => {
+const LeadForm: React.FC<LeadFormProps> = ({ currentLead, onSave, onCancel }) => {
   const { currentUser } = useAuth();
+  // The state 'lead' is now the single source of truth for the form's data.
+  const [lead, setLead] = useState<Partial<Lead>>({}); 
   const [loading, setLoading] = useState(false);
-  // Dynamic options
+  const [error, setError] = useState<string | null>(null);
   const [availableServices, setAvailableServices] = useState<ServiceOption[]>([]);
   const [availableStatuses, setAvailableStatuses] = useState<StatusOption[]>([]);
 
-  const [formData, setFormData] = useState<Partial<Lead>>({
-    leadName: '',
-    leadDate: new Date().toISOString().substring(0, 10),
-    mobileNumber: '',
-    emailAddress: '',
-    serviceRequired: [],
-    budget: undefined,
-    leadStatus: LeadStatus.CREATED, // Use enum for default on new lead
-    notes: '',
-  });
-
   useEffect(() => {
-    if (lead) {
-      setFormData(lead);
+    // This effect correctly populates the form for editing or resets it for a new lead.
+    if (currentLead) {
+      setLead(currentLead);
     } else {
-      // Set initial default status if no lead is being edited
-      setFormData(prev => ({ ...prev, leadStatus: availableStatuses.find(s => s.isDefault)?.name || LeadStatus.CREATED }));
+      setLead({
+        leadDate: new Date().toISOString().split('T')[0],
+        name: '',
+        mobileNumber: '',
+        emailAddress: '',
+        services: [],
+        leadStatus: '',
+        notes: '',
+        lastFollowUpDate: '',
+      });
     }
-  }, [lead, availableStatuses]);
+  }, [currentLead]);
 
   useEffect(() => {
     if (currentUser?.uid) {
@@ -53,15 +51,11 @@ const LeadForm: React.FC<LeadFormProps> = ({ lead, onSave, onCancel }) => {
       const servicesRef = collection(db, `users/${currentUser.uid}/service_options`);
       const q = query(servicesRef, orderBy('createdAt', 'asc'));
       const querySnapshot = await getDocs(q);
-      const servicesList = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as ServiceOption[];
+      const servicesList = querySnapshot.docs.map(d => ({ id: d.id, name: d.data().name })) as ServiceOption[];
       setAvailableServices(servicesList);
     } catch (error) {
       console.error('Error fetching available services:', error);
-      // Fallback to hardcoded services if fetching fails
-      setAvailableServices([
-        { id: 'seo', name: 'SEO' }, { id: 'ppc', name: 'PPC' },
-        { id: 'smm', name: 'Social Media Marketing' }, { id: 'other', name: 'Other' }
-      ]);
+      setError('Failed to load services.');
     }
   };
 
@@ -73,113 +67,136 @@ const LeadForm: React.FC<LeadFormProps> = ({ lead, onSave, onCancel }) => {
       const querySnapshot = await getDocs(q);
       const statusesList = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as StatusOption[];
       setAvailableStatuses(statusesList);
+      
+      // Set default status only for new leads
+      if (!currentLead && statusesList.length > 0) {
+        const defaultStatus = statusesList.find(s => s.isDefault) || statusesList[0];
+        setLead(prev => ({ ...prev, leadStatus: defaultStatus.name }));
+      }
     } catch (error) {
       console.error('Error fetching available statuses:', error);
-      // Fallback to hardcoded statuses if fetching fails
-      setAvailableStatuses([
-        { id: 'default_created', name: LeadStatus.CREATED, order: 1, isDefault: true, color: '#2563EB' },
-        { id: 'default_followup', name: LeadStatus.FOLLOWUP, order: 2, color: '#FBBF24' },
-        { id: 'default_client', name: LeadStatus.CLIENT, order: 3, color: '#10B981' },
-        { id: 'default_rejected', name: LeadStatus.REJECTED, order: 4, color: '#EF4444' },
-      ]);
+      setError('Failed to load statuses.');
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setLead(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleServiceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value, checked } = e.target;
+    const currentServices = lead.services || [];
+    const newServices = checked 
+      ? [...currentServices, value] 
+      : currentServices.filter(service => service !== value);
+    setLead(prev => ({ ...prev, services: newServices }));
   };
 
-  const handleMultiSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const options = Array.from(e.target.options);
-    const selectedServices = options.filter(option => option.selected).map(option => option.value);
-    setFormData(prev => ({ ...prev, serviceRequired: selectedServices }));
+  const validateForm = () => {
+    if (!lead.name || !lead.mobileNumber || !lead.emailAddress || !lead.services || lead.services.length === 0 || !lead.leadStatus) {
+      setError('Please fill in all required fields.');
+      return false;
+    }
+    setError(null);
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    if (!currentUser?.uid) {
-      alert("You must be logged in to save leads.");
-      setLoading(false);
+    if (!currentUser?.uid || !validateForm()) {
       return;
     }
 
-    try {
-      const leadData = {
-        ...formData,
-        updatedAt: new Date().toISOString(),
-        createdAt: formData.createdAt || new Date().toISOString(),
-        budget: formData.budget ? Number(formData.budget) : undefined,
-      };
+    setLoading(true);
+    const dataToSave = {
+      ...lead,
+      userId: currentUser.uid,
+      updatedAt: Timestamp.now(),
+    };
 
-      if (lead?.id) {
-        await updateDoc(doc(db, `users/${currentUser.uid}/leads`, lead.id), leadData);
+    try {
+      if (currentLead?.id) {
+        // This is the **UPDATE** logic. It uses the ID from the `currentLead` prop.
+        await updateDoc(doc(db, `users/${currentUser.uid}/leads`, currentLead.id), dataToSave);
       } else {
-        await addDoc(collection(db, `users/${currentUser.uid}/leads`), leadData);
+        // This is the **CREATE** logic.
+        await addDoc(collection(db, `users/${currentUser.uid}/leads`), {
+          ...dataToSave,
+          createdAt: Timestamp.now(),
+        });
       }
-      onSave?.();
-    } catch (error) {
-      console.error("Error saving lead:", error);
-      alert(`Error saving lead: ${error.message}`);
+      onSave();
+    } catch (err) {
+      console.error('Failed to save lead:', err);
+      setError(`Failed to save lead.`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-xl mx-auto bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-4">{lead ? 'Edit Lead' : 'Add New Lead'}</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Lead Name</label>
-          <input type="text" name="leadName" value={formData.leadName || ''} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+    <div className="bg-white p-6 rounded-lg shadow-md max-w-4xl mx-auto">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">
+        {currentLead ? 'Edit Lead' : 'Create New Lead'}
+      </h2>
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          {error}
+        </div>
+      )}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="leadDate" className="block text-sm font-medium text-gray-700 mb-1">Lead Date</label>
+            <input type="date" id="leadDate" name="leadDate" value={lead.leadDate || ''} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"/>
+          </div>
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <input type="text" id="name" name="name" value={lead.name || ''} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"/>
+          </div>
+          <div>
+            <label htmlFor="mobileNumber" className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
+            <input type="tel" id="mobileNumber" name="mobileNumber" value={lead.mobileNumber || ''} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"/>
+          </div>
+          <div>
+            <label htmlFor="emailAddress" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+            <input type="email" id="emailAddress" name="emailAddress" value={lead.emailAddress || ''} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"/>
+          </div>
+          <div>
+            <label htmlFor="leadStatus" className="block text-sm font-medium text-gray-700 mb-1">Lead Status</label>
+            <select id="leadStatus" name="leadStatus" value={lead.leadStatus || ''} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+              <option value="">Select Status</option>
+              {availableStatuses.map(status => <option key={status.id} value={status.name}>{status.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="lastFollowUpDate" className="block text-sm font-medium text-gray-700 mb-1">Recent Follow-up</label>
+            <input type="date" id="lastFollowUpDate" name="lastFollowUpDate" value={lead.lastFollowUpDate || ''} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"/>
+          </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Lead Date</label>
-          <input type="date" name="leadDate" value={formData.leadDate || ''} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Mobile Number</label>
-          <input type="text" name="mobileNumber" value={formData.mobileNumber || ''} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Email Address</label>
-          <input type="email" name="emailAddress" value={formData.emailAddress || ''} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Service Required</label>
-          <select name="serviceRequired" multiple value={formData.serviceRequired || []} onChange={handleMultiSelectChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 h-24">
+          <span className="block text-sm font-medium text-gray-700 mb-2">Services</span>
+          <div className="mt-1 grid grid-cols-2 sm:grid-cols-3 gap-2">
             {availableServices.map(service => (
-              <option key={service.id} value={service.name}>{service.name}</option>
+              <div key={service.id} className="flex items-center">
+                <input type="checkbox" id={`service-${service.id}`} value={service.name} checked={lead.services?.includes(service.name) || false} onChange={handleServiceChange} className="h-4 w-4 text-blue-600 border-gray-300 rounded"/>
+                <label htmlFor={`service-${service.id}`} className="ml-2 text-sm text-gray-700">{service.name}</label>
+              </div>
             ))}
-          </select>
+          </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Budget (Optional)</label>
-          <input type="number" name="budget" value={formData.budget || ''} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+          <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+          <textarea id="notes" name="notes" value={lead.notes || ''} onChange={handleChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"/>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Lead Status</label>
-          <select name="leadStatus" value={formData.leadStatus || ''} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-            {availableStatuses.map(status => (
-              <option key={status.id} value={status.name}>{status.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Notes (Optional)</label>
-          <textarea name="notes" value={formData.notes || ''} onChange={handleChange} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"></textarea>
-        </div>
-        <div className="flex justify-end space-x-2">
-          <button type="submit" disabled={loading} className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
-            <Save className="w-4 h-4 mr-2" /> {loading ? 'Saving...' : 'Save Lead'}
+        <div className="flex justify-end space-x-3">
+          <button type="button" onClick={onCancel} disabled={loading} className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+            <X className="mr-2 h-5 w-5" /> Cancel
           </button>
-          {onCancel && (
-            <button type="button" onClick={onCancel} className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-              <X className="w-4 h-4 mr-2" /> Cancel
-            </button>
-          )}
+          <button type="submit" disabled={loading} className="flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
+            <Save className="mr-2 h-5 w-5" /> {loading ? 'Saving...' : (currentLead ? 'Update Lead' : 'Create Lead')}
+          </button>
         </div>
       </form>
     </div>

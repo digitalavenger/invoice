@@ -36,7 +36,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
           <div className="flex h-16 items-center justify-between px-4 border-b">
-            <h1 className="text-xl font-bold text-gray-900">Invoice Pro</h1>
+            <h1 className="text-xl font-bold text-gray-900">Agency Pro</h1>
             <button onClick={() => setSidebarOpen(false)} className="text-gray-500 hover:text-gray-700">
               <X className="h-6 w-6" />
             </button>
@@ -51,7 +51,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   onClick={() => setSidebarOpen(false)}
                   className={({ isActive }) => `flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActive
-                      ? 'bg-blue-100 text-blue-700'
+                      ? 'bg-secondary text-primary' // Changed to bg-secondary text-primary
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
@@ -64,7 +64,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <div className="p-4 border-t">
             <div className="flex items-center mb-3">
               <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center"> {/* Changed to bg-primary */}
                   <span className="text-white text-sm font-medium">
                     {currentUser?.email?.charAt(0).toUpperCase()}
                   </span>
@@ -91,7 +91,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
         <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6">
           <div className="flex h-16 shrink-0 items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Invoice Pro</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Agency Pro</h1>
           </div>
           <nav className="flex flex-1 flex-col">
             <ul role="list" className="flex flex-1 flex-col gap-y-7">
@@ -105,8 +105,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                               to={item.href}
                               className={({ isActive }) => `group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${
                                 isActive
-                                  ? 'bg-blue-50 text-blue-700'
-                                  : 'text-gray-700 hover:text-blue-700 hover:bg-gray-50'
+                                  ? 'bg-secondary text-primary' // Changed to bg-secondary text-primary
+                                  : 'text-gray-700 hover:text-primary hover:bg-gray-50' // Changed to hover:text-primary
                               }`}
                             >
                               <Icon className="h-6 w-6 shrink-0" />
@@ -119,7 +119,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   </li>
                   <li className="mt-auto">
                     <div className="flex items-center gap-x-4 px-2 py-3 text-sm font-semibold leading-6 text-gray-900">
-                      <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+                      <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center"> {/* Changed to bg-primary */}
                         <span className="text-white text-sm font-medium">
                           {currentUser?.email?.charAt(0).toUpperCase()}
                         </span>
@@ -129,7 +129,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     </div>
                     <button
                       onClick={handleLogout}
-                      className="group -mx-2 flex w-full gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-700 hover:bg-gray-50 hover:text-blue-700 transition-colors"
+                      className="group -mx-2 flex w-full gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors" // Changed to hover:text-primary
                     >
                       <LogOut className="h-6 w-6 shrink-0" />
                       Sign out

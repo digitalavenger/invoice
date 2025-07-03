@@ -45,8 +45,8 @@ const Register: React.FC = () => {
         <div>
           <div className="flex justify-center">
             <div className="flex items-center">
-              <FileText className="h-12 w-12 text-blue-600" />
-              <span className="ml-2 text-3xl font-bold text-gray-900">Invoice Pro</span>
+              <FileText className="h-12 w-12 text-primary" /> {/* Changed to text-primary */}
+              <span className="ml-2 text-3xl font-bold text-gray-900">Agency Pro</span>
             </div>
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
@@ -56,7 +56,7 @@ const Register: React.FC = () => {
             Or{' '}
             <Link
               to="/login"
-              className="font-medium text-blue-600 hover:text-blue-500 transition-colors"
+              className="font-medium text-accent hover:text-blue-500 transition-colors" // Changed to text-accent
             >
               sign in to your existing account
             </Link>
@@ -81,7 +81,7 @@ const Register: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-accent focus:border-accent focus:z-10 sm:text-sm" // Changed to focus:ring-accent focus:border-accent
                 placeholder="Enter your email"
               />
             </div>
@@ -98,7 +98,7 @@ const Register: React.FC = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  className="appearance-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-accent focus:border-accent focus:z-10 sm:text-sm" // Changed to focus:ring-accent focus:border-accent
                   placeholder="Enter your password"
                 />
                 <button
@@ -127,7 +127,7 @@ const Register: React.FC = () => {
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="appearance-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  className="appearance-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-accent focus:border-accent focus:z-10 sm:text-sm" // Changed to focus:ring-accent focus:border-accent
                   placeholder="Confirm your password"
                 />
                 <button
@@ -149,7 +149,7 @@ const Register: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors" // Changed to bg-primary, hover:bg-gray-800, focus:ring-accent
             >
               {loading ? 'Creating account...' : 'Create account'}
             </button>

@@ -28,14 +28,12 @@
 
 
 /* Apply your desired font family globally */
-/* This will use "Gustavo_Regular" if loaded, otherwise fall back to "Poppins", then system fonts */
+/* This will use "Poppins", then system fonts */
 :root, html {
-  font-family: "Gustavo_Regular", "Poppins", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  font-family: "Poppins", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
-/* You can also target specific elements if Gustavo_Regular is only for headings */
-/*
+/* Apply "Gustavo_Regular" for headings */
 h1, h2, h3, h5 {
   font-family: "Gustavo_Regular", Arial, sans-serif;
 }
-*/
