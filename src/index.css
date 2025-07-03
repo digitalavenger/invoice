@@ -1,3 +1,41 @@
+/* Path: digitalavenger/invoice/invoice-8778080b2e82e01b0e0b1db4cbffc77385999a44/src/index.css */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Add your custom font definitions here */
+/* You need to have your font files (e.g., .woff2, .woff, .ttf) hosted in your public/fonts/ directory */
+/* Example for Gustavo_Regular: */
+
+@font-face {
+  font-family: 'Gustavo_Regular';
+  src: url('/fonts/Gustavo_Regular.woff2') format('woff2'),
+       url('/fonts/Gustavo_Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap; /* Ensures text is visible while font loads */
+}
+
+/* Example for Poppins, if you use it and have the file */
+@font-face {
+  font-family: 'Poppins';
+  src: url('/fonts/Poppins-Regular.woff2') format('woff2'); /* Adjust path and filename */
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+
+/* Apply your desired font family globally */
+/* This will use "Gustavo_Regular" if loaded, otherwise fall back to "Poppins", then system fonts */
+:root, html {
+  font-family: "Gustavo_Regular", "Poppins", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* You can also target specific elements if Gustavo_Regular is only for headings */
+/*
+h1, h2, h3, h5 {
+  font-family: "Gustavo_Regular", Arial, sans-serif;
+}
+*/

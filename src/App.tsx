@@ -10,7 +10,8 @@ import Register from './components/Auth/Register';
 import InvoicesPage from './pages/InvoicesPage';
 import CustomersPage from './pages/CustomersPage';
 import SettingsPage from './pages/SettingsPage';
-import DashboardPage from './pages/DashboardPage'; // NEW IMPORT
+import DashboardPage from './pages/DashboardPage';
+import LeadsPage from './pages/LeadsPage'; // IMPORT LeadsPage
 
 function App() {
   return (
@@ -20,10 +21,9 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            {/* Redirect root to dashboard */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route
-              path="/dashboard" // NEW ROUTE
+              path="/dashboard"
               element={
                 <ProtectedRoute>
                   <Layout>
@@ -47,7 +47,17 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Layout>
-                    <CustomersPage />
+                        <CustomersPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/leads" // NEW ROUTE FOR LEADS
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <LeadsPage />
                   </Layout>
                 </ProtectedRoute>
               }

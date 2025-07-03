@@ -1,9 +1,9 @@
 // Path: digitalavenger/invoice/invoice-8778080b2e82e01b0e0e1db4cbffc77385999a44/src/components/Layout.tsx
 
 import React from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'; // Use NavLink for active styling
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, Settings, Users, LogOut, Menu, X, LayoutDashboard } from 'lucide-react'; // NEW IMPORT: LayoutDashboard
+import { FileText, Settings, Users, LogOut, Menu, X, LayoutDashboard, Briefcase } from 'lucide-react'; // IMPORT Briefcase
 import { useState } from 'react';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -22,7 +22,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   };
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }, // NEW NAVIGATION ITEM
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Leads', href: '/leads', icon: Briefcase }, // NEW NAVIGATION ITEM (ORDERED FIRST)
     { name: 'Invoices', href: '/invoices', icon: FileText },
     { name: 'Customers', href: '/customers', icon: Users },
     { name: 'Settings', href: '/settings', icon: Settings },
@@ -44,7 +45,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             {navigation.map((item) => {
               const Icon = item.icon;
               return (
-                <NavLink // Use NavLink for active class handling
+                <NavLink
                   key={item.name}
                   to={item.href}
                   onClick={() => setSidebarOpen(false)}
@@ -97,72 +98,72 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               <li>
                 <ul role="list" className="-mx-2 space-y-1">
                   {navigation.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <li key={item.name}>
-                        <NavLink // Use NavLink for active class handling
-                          to={item.href}
-                          className={({ isActive }) => `group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${
-                            isActive
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'text-gray-700 hover:text-blue-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          <Icon className="h-6 w-6 shrink-0" />
-                          {item.name}
-                        </NavLink>
-                      </li>
-                    );
-                  })}
+                        const Icon = item.icon;
+                        return (
+                          <li key={item.name}>
+                            <NavLink
+                              to={item.href}
+                              className={({ isActive }) => `group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${
+                                isActive
+                                  ? 'bg-blue-50 text-blue-700'
+                                  : 'text-gray-700 hover:text-blue-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              <Icon className="h-6 w-6 shrink-0" />
+                              {item.name}
+                            </NavLink>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </li>
+                  <li className="mt-auto">
+                    <div className="flex items-center gap-x-4 px-2 py-3 text-sm font-semibold leading-6 text-gray-900">
+                      <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+                        <span className="text-white text-sm font-medium">
+                          {currentUser?.email?.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <span className="sr-only">Your profile</span>
+                      <span aria-hidden="true">{currentUser?.email}</span>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="group -mx-2 flex w-full gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-700 hover:bg-gray-50 hover:text-blue-700 transition-colors"
+                    >
+                      <LogOut className="h-6 w-6 shrink-0" />
+                      Sign out
+                    </button>
+                  </li>
                 </ul>
-              </li>
-              <li className="mt-auto">
-                <div className="flex items-center gap-x-4 px-2 py-3 text-sm font-semibold leading-6 text-gray-900">
-                  <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
-                    <span className="text-white text-sm font-medium">
-                      {currentUser?.email?.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <span className="sr-only">Your profile</span>
-                  <span aria-hidden="true">{currentUser?.email}</span>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="group -mx-2 flex w-full gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-700 hover:bg-gray-50 hover:text-blue-700 transition-colors"
-                >
-                  <LogOut className="h-6 w-6 shrink-0" />
-                  Sign out
-                </button>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </div>
+              </nav>
+            </div>
+          </div>
 
-      {/* Main content */}
-      <div className="lg:pl-72">
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-          <button
-            type="button"
-            className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <span className="sr-only">Open sidebar</span>
-            <Menu className="h-6 w-6" />
-          </button>
-          <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-            <div className="flex flex-1" />
+          {/* Main content */}
+          <div className="lg:pl-72">
+            <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+              <button
+                type="button"
+                className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <span className="sr-only">Open sidebar</span>
+                <Menu className="h-6 w-6" />
+              </button>
+              <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
+                <div className="flex flex-1" />
+              </div>
+            </div>
+
+            <main className="py-10">
+              <div className="px-4 sm:px-6 lg:px-8">
+                {children}
+              </div>
+            </main>
           </div>
         </div>
+      );
+    };
 
-        <main className="py-10">
-          <div className="px-4 sm:px-6 lg:px-8">
-            {children}
-          </div>
-        </main>
-      </div>
-    </div>
-  );
-};
-
-export default Layout;
+    export default Layout;

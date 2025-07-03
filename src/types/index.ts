@@ -9,11 +9,10 @@ export interface CompanySettings {
   website: string;
   gst: string;
   pan: string;
-  logoUrl?: string; // Keep this for display on settings page if needed
-  logoBase64?: string; // NEW: To store the Base64 representation of the logo
-  invoicePrefix?: string; // Existing: Prefix for invoice numbers
+  logoUrl?: string;
+  logoBase64?: string;
+  invoicePrefix?: string;
 
-  // Bank details fields
   bankName?: string;
   accountNumber?: string;
   ifscCode?: string;
@@ -34,7 +33,7 @@ export interface InvoiceItem {
   description: string;
   quantity: number;
   rate: number;
-  amount: 0;
+  amount: number;
   gstRate: number;
   gstAmount: number;
 }
@@ -54,4 +53,42 @@ export interface Invoice {
   status: 'draft' | 'sent' | 'paid';
   createdAt: string;
   updatedAt: string;
+}
+
+// NEW TYPES FOR DYNAMIC LEAD MANAGEMENT
+export interface ServiceOption {
+  id?: string;
+  name: string;
+  createdAt?: string;
+}
+
+export interface StatusOption {
+  id?: string;
+  name: string;
+  order: number;
+  isDefault?: boolean;
+  color?: string; // NEW: Color for this status
+  createdAt?: string;
+}
+
+export interface Lead {
+  id?: string;
+  leadName: string;
+  leadDate: string; // Stored as 'YYYY-MM-DD'
+  mobileNumber: string;
+  emailAddress: string;
+  serviceRequired: string[]; // Changed to string[] for dynamic services
+  budget?: number;
+  leadStatus: string; // Changed to string for dynamic statuses
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// The LeadStatus enum can be kept for initial defaults if desired, but not strictly typed now
+export enum LeadStatus {
+  CREATED = 'Created',
+  FOLLOWUP = 'Followup',
+  CLIENT = 'Client',
+  REJECTED = 'Rejected',
 }

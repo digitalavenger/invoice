@@ -86,8 +86,7 @@ const DashboardPage: React.FC = () => {
   };
 
   const handleViewInvoice = (invoiceId: string) => {
-    // Navigate to the invoices page with a query parameter to view/edit the specific invoice
-    navigate(`/invoices?view=${invoiceId}`); 
+    navigate(`/invoices?view=${invoiceId}`);
   };
 
   if (loading) {
@@ -98,7 +97,6 @@ const DashboardPage: React.FC = () => {
     );
   }
 
-  // Helper for Tailwind CSS classes based on status
   const getStatusColorClass = (status: string) => {
     switch (status) {
       case 'draft':
@@ -138,7 +136,7 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {/* Invoices Table */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
+      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
         <div className="px-4 py-4 sm:px-6 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">Recent Invoices</h3>
         </div>
@@ -166,7 +164,7 @@ const DashboardPage: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{invoice.customer.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{invoice.customer.phone}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{invoice.total.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <select
                         value={invoice.status}
                         onChange={(e) => handleStatusUpdate(invoice.id!, e.target.value as 'draft' | 'sent' | 'paid')}
@@ -177,13 +175,9 @@ const DashboardPage: React.FC = () => {
                         <option value="paid">Paid</option>
                       </select>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleViewInvoice(invoice.id!)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                          title="View Invoice"
-                        >
+                        <button onClick={() => handleViewInvoice(invoice.id!)} className="text-indigo-600 hover:text-indigo-900">
                           <Eye className="w-4 h-4" />
                         </button>
                       </div>

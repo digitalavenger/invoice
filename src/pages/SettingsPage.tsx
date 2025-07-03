@@ -1,12 +1,14 @@
 // Path: digitalavenger/invoice/invoice-8778080b2e82e01b0e0b1db4cbffc77385999a44/src/pages/SettingsPage.tsx
 
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
-import { CompanySettings } from '../types';
-import { Save, Upload, Building } from 'lucide-react';
+import { CompanySettings, ServiceOption, StatusOption, LeadStatus } from '../types';
+import { Save, Upload, Building, Plus, Trash2, ChevronRight, Briefcase, FileText } from 'lucide-react';
+
+type SettingsTab = 'leads' | 'invoice'; // Defined tabs
 
 const SettingsPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -14,26 +16,29 @@ const SettingsPage: React.FC = () => {
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [formData, setFormData] = useState<CompanySettings>({
-    name: '',
-    address: '',
-    phone: '',
-    email: '',
-    website: '',
-    gst: '',
-    pan: '',
-    logoUrl: '',
-    logoBase64: '', // Initialize new field
-    invoicePrefix: '',
-    bankName: '',
-    accountNumber: '',
-    ifscCode: '',
-    branchName: ''
+    name: '', address: '', phone: '', email: '', website: '', gst: '', pan: '',
+    logoUrl: '', logoBase64: '', invoicePrefix: '',
+    bankName: '', accountNumber: '', ifscCode: '', branchName: ''
   });
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
+  // Dynamic options states
+  const [services, setServices] = useState<ServiceOption[]>([]);
+  const [newServiceName, setNewServiceName] = useState('');
+  const [statuses, setStatuses] = useState<StatusOption[]>([]);
+  const [newStatusName, setNewStatusName] = useState('');
+  const [newStatusColor, setNewStatusColor] = useState('#000000'); // Default color for new status
 
+  const [activeTab, setActiveTab] = useState<SettingsTab>('leads'); // Default to Leads tab first
+
+  useEffect(() => {
+    fetchSettings(); // Always fetch company settings for both tabs
+    if (currentUser?.uid) {
+      fetchServiceOptions();
+      fetchStatusOptions();
+    }
+  }, [currentUser]);
+
+  // --- Company Settings (Invoice related) ---
   const fetchSettings = async () => {
     try {
       const settingsRef = collection(db, `users/${currentUser?.uid}/settings`);
@@ -48,7 +53,6 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  // Function to convert File to Base64
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -62,31 +66,31 @@ const SettingsPage: React.FC = () => {
     const logoRef = ref(storage, `logos/${currentUser?.uid}/${file.name}`);
     await uploadBytes(logoRef, file);
     const url = await getDownloadURL(logoRef);
-    const base64 = await fileToBase64(file); // Convert to Base64
+    const base64 = await fileToBase64(file);
     return { url, base64 };
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmitCompanySettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
       let logoUrl = formData.logoUrl;
-      let logoBase64 = formData.logoBase64; // Get existing Base64
+      let logoBase64 = formData.logoBase64;
 
       if (logoFile) {
         const result = await handleLogoUpload(logoFile);
         logoUrl = result.url;
-        logoBase64 = result.base64; // Set new Base64
+        logoBase64 = result.base64;
       }
 
       const settingsData = {
         ...formData,
         logoUrl,
-        logoBase64 // Save Base64 to Firebase
+        logoBase64
       };
 
-      if (!currentUser?.uid) { // Ensure user is logged in
+      if (!currentUser?.uid) {
         console.error("Error saving settings: User not logged in (UID is null).");
         alert('Error saving settings: You must be logged in.');
         setLoading(false);
@@ -102,9 +106,9 @@ const SettingsPage: React.FC = () => {
 
       setFormData({ ...settingsData });
       setLogoFile(null);
-      alert('Settings saved successfully!');
+      alert('Invoice Settings saved successfully!');
     } catch (error) {
-      console.error('Detailed Error saving settings:', error); // Log the actual error
+      console.error('Detailed Error saving settings:', error);
       alert(`Error saving settings: ${error.message || 'Please try again.'}`);
     } finally {
       setLoading(false);
@@ -117,220 +121,319 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-        <div className="px-6 py-4 bg-gray-50 border-b">
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-            <Building className="w-6 h-6 mr-2" />
-            Company Settings
-          </h1>
-          <p className="text-gray-600 mt-1">Configure your company information for invoices</p>
-        </div>
+  // --- Service Options Management (Leads related) ---
+  const fetchServiceOptions = async () => {
+    if (!currentUser?.uid) return;
+    try {
+      const servicesRef = collection(db, `users/${currentUser.uid}/service_options`);
+      const q = query(servicesRef, orderBy('createdAt', 'asc'));
+      const querySnapshot = await getDocs(q);
+      const servicesList = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as ServiceOption[];
+      setServices(servicesList);
+    } catch (error) {
+      console.error('Error fetching service options:', error);
+    }
+  };
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Logo Upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Company Logo
-            </label>
-            <div className="flex items-center space-x-4">
-              {/* Display logo from logoUrl or logoBase64 if available */}
-              {(formData.logoUrl || formData.logoBase64) && (
-                <img
-                  src={formData.logoUrl || formData.logoBase64}
-                  alt="Company Logo"
-                  className="h-16 w-16 object-contain border border-gray-200 rounded"
-                />
-              )}
-              <div>
+  const handleAddService = async () => {
+    if (!currentUser?.uid || !newServiceName.trim()) return;
+    setLoading(true);
+    try {
+      await addDoc(collection(db, `users/${currentUser.uid}/service_options`), {
+        name: newServiceName.trim(),
+        createdAt: new Date().toISOString(),
+      });
+      setNewServiceName('');
+      fetchServiceOptions();
+    } catch (error) {
+      console.error('Error adding service:', error);
+      alert('Failed to add service.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteService = async (serviceId: string) => {
+    if (!currentUser?.uid || !window.confirm('Are you sure you want to delete this service? This cannot be undone.')) return;
+    setLoading(true);
+    try {
+      await deleteDoc(doc(db, `users/${currentUser.uid}/service_options`, serviceId));
+      fetchServiceOptions();
+    } catch (error) {
+      console.error('Error deleting service:', error);
+      alert('Failed to delete service.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- Status Options Management (Leads related) ---
+  const fetchStatusOptions = async () => {
+    if (!currentUser?.uid) return;
+    try {
+      const statusesRef = collection(db, `users/${currentUser.uid}/status_options`);
+      const q = query(statusesRef, orderBy('order', 'asc'), orderBy('createdAt', 'asc'));
+      const querySnapshot = await getDocs(q);
+      const statusesList = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as StatusOption[];
+      setStatuses(statusesList);
+    } catch (error) {
+      console.error('Error fetching status options:', error);
+      // Fallback to hardcoded statuses if fetching fails (ensure IDs for keys)
+      setStatuses([
+        { id: 'default_created', name: LeadStatus.CREATED, order: 1, isDefault: true, color: '#2563EB' },
+        { id: 'default_followup', name: LeadStatus.FOLLOWUP, order: 2, color: '#FBBF24' },
+        { id: 'default_client', name: LeadStatus.CLIENT, order: 3, color: '#10B981' },
+        { id: 'default_rejected', name: LeadStatus.REJECTED, order: 4, color: '#EF4444' },
+      ]);
+    }
+  };
+
+  const handleAddStatus = async () => {
+    if (!currentUser?.uid || !newStatusName.trim()) return;
+    setLoading(true);
+    try {
+      const maxOrder = statuses.reduce((max, s) => Math.max(max, s.order || 0), 0);
+      await addDoc(collection(db, `users/${currentUser.uid}/status_options`), {
+        name: newStatusName.trim(),
+        order: maxOrder + 1,
+        color: newStatusColor,
+        createdAt: new Date().toISOString(),
+      });
+      setNewStatusName('');
+      setNewStatusColor('#000000'); // Reset color picker
+      fetchStatusOptions();
+    } catch (error) {
+      console.error('Error adding status:', error);
+      alert('Failed to add status.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteStatus = async (statusId: string) => {
+    if (!currentUser?.uid || !window.confirm('Are you sure you want to delete this status?')) return;
+    setLoading(true);
+    try {
+      await deleteDoc(doc(db, `users/${currentUser.uid}/status_options`, statusId));
+      fetchStatusOptions();
+    } catch (error) {
+      console.error('Error deleting status:', error);
+      alert('Failed to delete status.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto flex flex-col md:flex-row"> {/* Use flex-col and md:flex-row */}
+      {/* Sidebar for Settings Sections */}
+      <div className="w-full md:w-56 bg-white shadow-lg rounded-lg p-4 mb-6 md:mb-0 md:mr-6"> {/* Responsive width and margin */}
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Settings</h2>
+        <ul>
+          <li className="mb-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('leads')}
+              className={`flex items-center w-full px-3 py-2 rounded-md text-left font-medium transition-colors ${
+                activeTab === 'leads' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <Briefcase className="w-5 h-5 mr-3" />
+              Lead Settings
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              onClick={() => setActiveTab('invoice')}
+              className={`flex items-center w-full px-3 py-2 rounded-md text-left font-medium transition-colors ${
+                activeTab === 'invoice' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <FileText className="w-5 h-5 mr-3" />
+              Invoice Settings
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 bg-white shadow-lg rounded-lg overflow-hidden">
+        {activeTab === 'leads' && (
+          <div className="p-6 space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+              <Briefcase className="w-6 h-6 mr-2" />
+              Lead Settings
+            </h1>
+            <p className="text-gray-600 mt-1">Configure options for your leads management</p>
+
+            {/* Dynamic Service Options Management */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <Plus className="w-5 h-5 mr-2 text-blue-600" /> Manage Services
+              </h3>
+              <div className="flex space-x-2 mb-4">
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoChange}
-                  className="hidden"
-                  id="logo-upload"
+                  type="text"
+                  placeholder="New service name"
+                  value={newServiceName}
+                  onChange={(e) => setNewServiceName(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
                 />
-                <label
-                  htmlFor="logo-upload"
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer transition-colors"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Logo
-                </label>
-                {logoFile && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Selected: {logoFile.name}
-                  </p>
+                <button type="button" onClick={handleAddService} disabled={loading || !newServiceName.trim()}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
+                  Add
+                </button>
+              </div>
+              <ul className="divide-y divide-gray-200">
+                {services.map(service => (
+                  <li key={service.id} className="flex items-center justify-between py-2 text-sm text-gray-800">
+                    <span>{service.name}</span>
+                    <button type="button" onClick={() => handleDeleteService(service.id!)} disabled={loading}
+                      className="text-red-600 hover:text-red-900 disabled:opacity-50">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </li>
+                ))}
+                {services.length === 0 && <li className="py-2 text-sm text-gray-500">No custom services.</li>}
+              </ul>
+            </div>
+
+            {/* Dynamic Lead Status Management */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <Plus className="w-5 h-5 mr-2 text-green-600" /> Manage Lead Statuses
+              </h3>
+              <div className="flex space-x-2 mb-4">
+                <input
+                  type="text"
+                  placeholder="New status name"
+                  value={newStatusName}
+                  onChange={(e) => setNewStatusName(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+                />
+                <input
+                  type="color"
+                  value={newStatusColor}
+                  onChange={(e) => setNewStatusColor(e.target.value)}
+                  className="w-10 h-9 border border-gray-300 rounded-md shadow-sm cursor-pointer"
+                  title="Choose status color"
+                />
+                <button type="button" onClick={handleAddStatus} disabled={loading || !newStatusName.trim()}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50">
+                  Add
+                </button>
+              </div>
+              <ul className="divide-y divide-gray-200">
+                {statuses.map(status => (
+                  <li key={status.id} className="flex items-center justify-between py-2 text-sm text-gray-800">
+                    <div className="flex items-center">
+                      <span className="w-4 h-4 rounded-full mr-2" style={{ backgroundColor: status.color || '#9E9E9E' }}></span>
+                      <span>{status.name} (Order: {status.order})</span>
+                    </div>
+                    <button type="button" onClick={() => handleDeleteStatus(status.id!)} disabled={loading}
+                      className="text-red-600 hover:text-red-900 disabled:opacity-50">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </li>
+                ))}
+                {statuses.length === 0 && <li className="py-2 text-sm text-gray-500">No custom statuses.</li>}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'invoice' && (
+          <form onSubmit={handleSubmitCompanySettings} className="p-6 space-y-6">
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+              <FileText className="w-6 h-6 mr-2" />
+              Invoice Settings
+            </h1>
+            <p className="text-gray-600 mt-1">Configure your company information for invoices</p>
+
+            {/* Logo Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Company Logo</label>
+              <div className="flex items-center space-x-4">
+                {(formData.logoUrl || formData.logoBase64) && (
+                  <img src={formData.logoUrl || formData.logoBase64} alt="Company Logo" className="h-16 w-16 object-contain border border-gray-200 rounded" />
                 )}
+                <div>
+                  <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" id="logo-upload" />
+                  <label htmlFor="logo-upload" className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer transition-colors">
+                    <Upload className="w-4 h-4 mr-2" /> Upload Logo
+                  </label>
+                  {logoFile && (<p className="text-sm text-gray-500 mt-1">Selected: {logoFile.name}</p>)}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Company Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Company Name *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email *
-              </label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Website
-              </label>
-              <input
-                type="url"
-                value={formData.website}
-                onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                GST Number *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.gst}
-                onChange={(e) => setFormData({ ...formData, gst: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                PAN Number *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.pan}
-                onChange={(e) => setFormData({ ...formData, pan: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            {/* Invoice Prefix field */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Invoice Prefix (e.g., VRI)
-              </label>
-              <input
-                type="text"
-                value={formData.invoicePrefix || ''}
-                onChange={(e) => setFormData({ ...formData, invoicePrefix: e.target.value.toUpperCase() })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                maxLength={5}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Address *
-            </label>
-            <textarea
-              required
-              rows={3}
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          {/* Bank Account Details */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Bank Account Details</h3>
+            {/* Company Information Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bank Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.bankName || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, bankName: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Company Name *</label>
+                <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Account Number
-                </label>
-                <input
-                  type="text"
-                  value={formData.accountNumber || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, accountNumber: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  IFSC Code
-                </label>
-                <input
-                  type="text"
-                  value={formData.ifscCode || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, ifscCode: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                <input type="text" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Branch Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.branchName || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, branchName: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                <input type="url" value={formData.website} onChange={(e) => setFormData({ ...formData, website: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">GST Number *</label>
+                <input type="text" required value={formData.gst} onChange={(e) => setFormData({ ...formData, gst: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">PAN Number *</label>
+                <input type="text" required value={formData.pan} onChange={(e) => setFormData({ ...formData, pan: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Prefix (e.g., VRI)</label>
+                <input type="text" value={formData.invoicePrefix || ''} onChange={(e) => setFormData({ ...formData, invoicePrefix: e.target.value.toUpperCase() })} className="w-full px-3 py-2 border border-gray-300 rounded-md" maxLength={5} />
               </div>
             </div>
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
+              <textarea required rows={3} value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+            </div>
 
+            {/* Bank Account Details */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Bank Account Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                  <input type="text" value={formData.bankName || ''} onChange={(e) => setFormData(prev => ({ ...prev, bankName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+                  <input type="text" value={formData.accountNumber || ''} onChange={(e) => setFormData(prev => ({ ...prev, accountNumber: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">IFSC Code</label>
+                  <input type="text" value={formData.ifscCode || ''} onChange={(e) => setFormData(prev => ({ ...prev, ifscCode: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Branch Name</label>
+                  <input type="text" value={formData.branchName || ''} onChange={(e) => setFormData(prev => ({ ...prev, branchName: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                </div>
+              </div>
+            </div>
 
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex items-center px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {loading ? 'Saving...' : 'Save Settings'}
-            </button>
-          </div>
-        </form>
+            <div className="flex justify-end">
+              <button type="submit" disabled={loading} className="inline-flex items-center px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
+                <Save className="w-4 h-4 mr-2" /> {loading ? 'Saving...' : 'Save Invoice Settings'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
