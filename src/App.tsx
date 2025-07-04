@@ -10,9 +10,11 @@ import CustomersPage from './pages/CustomersPage';
 import SettingsPage from './pages/SettingsPage';
 import DashboardPage from './pages/DashboardPage';
 import LeadsPage from './pages/LeadsPage';
-import AdminUsersPage from './pages/AdminUsersPage';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import AdminTenantsPage from './pages/AdminTenantsPage';
-import { Permission } from './types';
+import AdminUsersPage from './pages/AdminUsersPage';
+import SubscriptionManagement from './pages/SubscriptionManagement';
+import { Permission, UserRole } from './types';
 
 function App() {
   return (
@@ -22,37 +24,47 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={
-              <ProtectedRoute requiredPermission={Permission.MANAGE_USERS}>
+              <ProtectedRoute requiredPermission={Permission.MANAGE_TENANT_USERS}>
                 <Register />
               </ProtectedRoute>
             } />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             
-            {/* Main Application Routes */}
+            {/* Dashboard Routes - Different for Super Admin vs Others */}
             <Route
               path="/dashboard"
               element={
                 <ProtectedRoute requiredPermission={Permission.VIEW_DASHBOARD}>
                   <Layout>
-                    <DashboardPage />
+                    <DashboardRouter />
                   </Layout>
                 </ProtectedRoute>
               }
             />
+            
+            {/* Leads Module */}
             <Route
               path="/leads"
               element={
-                <ProtectedRoute requiredPermission={Permission.VIEW_LEADS}>
+                <ProtectedRoute 
+                  requiredPermission={Permission.VIEW_LEADS}
+                  requiredModule="leads"
+                >
                   <Layout>
                     <LeadsPage />
                   </Layout>
                 </ProtectedRoute>
               }
             />
+            
+            {/* Invoice Module */}
             <Route
               path="/invoices"
               element={
-                <ProtectedRoute requiredPermission={Permission.VIEW_INVOICES}>
+                <ProtectedRoute 
+                  requiredPermission={Permission.VIEW_INVOICES}
+                  requiredModule="invoices"
+                >
                   <Layout>
                     <InvoicesPage />
                   </Layout>
@@ -62,13 +74,18 @@ function App() {
             <Route
               path="/customers"
               element={
-                <ProtectedRoute requiredPermission={Permission.VIEW_CUSTOMERS}>
+                <ProtectedRoute 
+                  requiredPermission={Permission.VIEW_CUSTOMERS}
+                  requiredModule="invoices"
+                >
                   <Layout>
                     <CustomersPage />
                   </Layout>
                 </ProtectedRoute>
               }
             />
+            
+            {/* Settings */}
             <Route
               path="/settings"
               element={
@@ -80,23 +97,35 @@ function App() {
               }
             />
             
-            {/* Admin Routes */}
+            {/* Subscription Management */}
             <Route
-              path="/admin/users"
+              path="/subscription"
               element={
-                <ProtectedRoute requiredPermission={Permission.MANAGE_USERS}>
+                <ProtectedRoute requiredPermission={Permission.MANAGE_TENANT_SETTINGS}>
                   <Layout>
-                    <AdminUsersPage />
+                    <SubscriptionManagement />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Super Admin Routes */}
+            <Route
+              path="/admin/tenants"
+              element={
+                <ProtectedRoute requiredPermission={Permission.MANAGE_ALL_TENANTS}>
+                  <Layout>
+                    <AdminTenantsPage />
                   </Layout>
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/admin/tenants"
+              path="/admin/users"
               element={
-                <ProtectedRoute requiredPermission={Permission.MANAGE_TENANTS}>
+                <ProtectedRoute requiredPermission={Permission.MANAGE_TENANT_USERS}>
                   <Layout>
-                    <AdminTenantsPage />
+                    <AdminUsersPage />
                   </Layout>
                 </ProtectedRoute>
               }
@@ -107,5 +136,16 @@ function App() {
     </AuthProvider>
   );
 }
+
+// Component to route to appropriate dashboard based on user role
+const DashboardRouter: React.FC = () => {
+  const { userProfile } = useAuth();
+  
+  if (userProfile?.role === UserRole.SUPER_ADMIN) {
+    return <SuperAdminDashboard />;
+  }
+  
+  return <DashboardPage />;
+};
 
 export default App;

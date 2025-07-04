@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -10,24 +10,28 @@ export const useTenantData = <T extends { id?: string; tenantId?: string; userId
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const getCollectionPath = () => {
-    if (currentTenant) {
-      return `tenants/${currentTenant.id}/${collectionName}`;
-    }
-    return `users/${currentUser?.uid}/${collectionName}`;
-  };
-
   const fetchData = async () => {
     if (!currentUser?.uid) return;
     
     setLoading(true);
     try {
-      const collectionRef = collection(db, getCollectionPath());
+      const collectionRef = collection(db, collectionName);
       let q = query(collectionRef);
       
-      // If user has a tenant, filter by tenant
-      if (currentTenant) {
+      // Filter by tenant if user belongs to a tenant
+      if (currentTenant?.id) {
         q = query(collectionRef, where('tenantId', '==', currentTenant.id));
+      } else if (userProfile?.tenantId) {
+        // Fallback to user's tenantId if currentTenant is not loaded
+        q = query(collectionRef, where('tenantId', '==', userProfile.tenantId));
+      }
+      
+      // Add ordering if the collection supports it
+      try {
+        q = query(q, orderBy('createdAt', 'desc'));
+      } catch (error) {
+        // If ordering fails, continue without it
+        console.warn(`Ordering not available for ${collectionName}:`, error);
       }
       
       const querySnapshot = await getDocs(q);
@@ -51,14 +55,14 @@ export const useTenantData = <T extends { id?: string; tenantId?: string; userId
       const itemWithMeta = {
         ...item,
         userId: currentUser.uid,
-        tenantId: currentTenant?.id,
+        tenantId: currentTenant?.id || userProfile?.tenantId,
         createdAt: new Date(),
         updatedAt: new Date()
       };
       
-      const docRef = await addDoc(collection(db, getCollectionPath()), itemWithMeta);
+      const docRef = await addDoc(collection(db, collectionName), itemWithMeta);
       const newItem = { id: docRef.id, ...itemWithMeta } as T;
-      setData(prev => [...prev, newItem]);
+      setData(prev => [newItem, ...prev]);
       return newItem;
     } catch (error) {
       console.error(`Error adding ${collectionName} item:`, error);
@@ -75,7 +79,7 @@ export const useTenantData = <T extends { id?: string; tenantId?: string; userId
         updatedAt: new Date()
       };
       
-      await updateDoc(doc(db, getCollectionPath(), id), updateData);
+      await updateDoc(doc(db, collectionName, id), updateData);
       setData(prev => prev.map(item => 
         item.id === id ? { ...item, ...updateData } : item
       ));
@@ -89,7 +93,7 @@ export const useTenantData = <T extends { id?: string; tenantId?: string; userId
     if (!currentUser?.uid) return;
     
     try {
-      await deleteDoc(doc(db, getCollectionPath(), id));
+      await deleteDoc(doc(db, collectionName, id));
       setData(prev => prev.filter(item => item.id !== id));
     } catch (error) {
       console.error(`Error deleting ${collectionName} item:`, error);
@@ -99,7 +103,7 @@ export const useTenantData = <T extends { id?: string; tenantId?: string; userId
 
   useEffect(() => {
     fetchData();
-  }, [currentUser, currentTenant]);
+  }, [currentUser, currentTenant, userProfile]);
 
   return {
     data,

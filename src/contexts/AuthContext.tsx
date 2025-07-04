@@ -6,14 +6,15 @@ import {
   signOut, 
   onAuthStateChanged 
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
-import { UserProfile, UserRole, Permission, ROLE_PERMISSIONS, Tenant } from '../types';
+import { UserProfile, UserRole, Permission, ROLE_PERMISSIONS, Tenant, Subscription, SubscriptionStatus } from '../types';
 
 interface AuthContextType {
   currentUser: User | null;
   userProfile: UserProfile | null;
   currentTenant: Tenant | null;
+  currentSubscription: Subscription | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, userData: Partial<UserProfile>) => Promise<void>;
   logout: () => Promise<void>;
@@ -21,6 +22,8 @@ interface AuthContextType {
   hasPermission: (permission: Permission) => boolean;
   isRole: (role: UserRole) => boolean;
   refreshUserProfile: () => Promise<void>;
+  canAccessModule: (module: 'leads' | 'invoices') => boolean;
+  isSubscriptionActive: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
+  const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUserProfile = async (uid: string) => {
@@ -46,14 +50,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const profile = { id: userDoc.id, ...userDoc.data() } as UserProfile;
         setUserProfile(profile);
         
-        // Fetch tenant if user has one
+        // Update last login
+        await updateDoc(doc(db, 'users', uid), {
+          lastLogin: new Date()
+        });
+        
+        // Fetch tenant and subscription if user has one
         if (profile.tenantId) {
-          const tenantDoc = await getDoc(doc(db, 'tenants', profile.tenantId));
-          if (tenantDoc.exists()) {
-            setCurrentTenant({ id: tenantDoc.id, ...tenantDoc.data() } as Tenant);
-          }
+          await fetchTenantData(profile.tenantId);
         } else {
           setCurrentTenant(null);
+          setCurrentSubscription(null);
         }
         
         return profile;
@@ -78,6 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await setDoc(doc(db, 'users', uid), superAdminProfile);
           setUserProfile({ id: uid, ...superAdminProfile });
           setCurrentTenant(null);
+          setCurrentSubscription(null);
           return { id: uid, ...superAdminProfile };
         }
       }
@@ -85,6 +93,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error fetching user profile:', error);
     }
     return null;
+  };
+
+  const fetchTenantData = async (tenantId: string) => {
+    try {
+      // Fetch tenant
+      const tenantDoc = await getDoc(doc(db, 'tenants', tenantId));
+      if (tenantDoc.exists()) {
+        const tenant = { id: tenantDoc.id, ...tenantDoc.data() } as Tenant;
+        setCurrentTenant(tenant);
+        
+        // Fetch subscription
+        if (tenant.subscriptionId) {
+          const subscriptionDoc = await getDoc(doc(db, 'subscriptions', tenant.subscriptionId));
+          if (subscriptionDoc.exists()) {
+            const subscription = { id: subscriptionDoc.id, ...subscriptionDoc.data() } as Subscription;
+            setCurrentSubscription(subscription);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching tenant data:', error);
+    }
   };
 
   const refreshUserProfile = async () => {
@@ -122,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await signOut(auth);
     setUserProfile(null);
     setCurrentTenant(null);
+    setCurrentSubscription(null);
   };
 
   const hasPermission = (permission: Permission): boolean => {
@@ -132,6 +163,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return userProfile?.role === role;
   };
 
+  const canAccessModule = (module: 'leads' | 'invoices'): boolean => {
+    // Super admin can access everything
+    if (userProfile?.role === UserRole.SUPER_ADMIN) {
+      return true;
+    }
+    
+    // Check if tenant allows this module
+    if (currentTenant?.settings?.allowedModules?.includes(module)) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  const isSubscriptionActive = (): boolean => {
+    if (!currentSubscription) return false;
+    
+    const now = new Date();
+    const endDate = currentSubscription.endDate.toDate();
+    
+    return currentSubscription.status === SubscriptionStatus.ACTIVE && endDate > now;
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
@@ -140,6 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setUserProfile(null);
         setCurrentTenant(null);
+        setCurrentSubscription(null);
       }
       setLoading(false);
     });
@@ -151,13 +206,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     currentUser,
     userProfile,
     currentTenant,
+    currentSubscription,
     login,
     register,
     logout,
     loading,
     hasPermission,
     isRole,
-    refreshUserProfile
+    refreshUserProfile,
+    canAccessModule,
+    isSubscriptionActive
   };
 
   return (
