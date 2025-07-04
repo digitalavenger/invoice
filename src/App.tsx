@@ -1,5 +1,3 @@
-// Path: digitalavenger/invoice/invoice-8778080b2e82e01b0e0e1db4cbffc77385999a44/src/App.tsx
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -11,7 +9,10 @@ import InvoicesPage from './pages/InvoicesPage';
 import CustomersPage from './pages/CustomersPage';
 import SettingsPage from './pages/SettingsPage';
 import DashboardPage from './pages/DashboardPage';
-import LeadsPage from './pages/LeadsPage'; // IMPORT LeadsPage
+import LeadsPage from './pages/LeadsPage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminTenantsPage from './pages/AdminTenantsPage';
+import { Permission } from './types';
 
 function App() {
   return (
@@ -20,12 +21,18 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/register" element={
+              <ProtectedRoute requiredPermission={Permission.MANAGE_USERS}>
+                <Register />
+              </ProtectedRoute>
+            } />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            
+            {/* Main Application Routes */}
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredPermission={Permission.VIEW_DASHBOARD}>
                   <Layout>
                     <DashboardPage />
                   </Layout>
@@ -33,9 +40,19 @@ function App() {
               }
             />
             <Route
+              path="/leads"
+              element={
+                <ProtectedRoute requiredPermission={Permission.VIEW_LEADS}>
+                  <Layout>
+                    <LeadsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/invoices"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredPermission={Permission.VIEW_INVOICES}>
                   <Layout>
                     <InvoicesPage />
                   </Layout>
@@ -45,19 +62,9 @@ function App() {
             <Route
               path="/customers"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredPermission={Permission.VIEW_CUSTOMERS}>
                   <Layout>
-                        <CustomersPage />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/leads" // NEW ROUTE FOR LEADS
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <LeadsPage />
+                    <CustomersPage />
                   </Layout>
                 </ProtectedRoute>
               }
@@ -68,6 +75,28 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <SettingsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Admin Routes */}
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute requiredPermission={Permission.MANAGE_USERS}>
+                  <Layout>
+                    <AdminUsersPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/tenants"
+              element={
+                <ProtectedRoute requiredPermission={Permission.MANAGE_TENANTS}>
+                  <Layout>
+                    <AdminTenantsPage />
                   </Layout>
                 </ProtectedRoute>
               }
