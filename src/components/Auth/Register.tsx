@@ -111,11 +111,11 @@ const Register: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-gray-900/90"></div>
         <div className="relative z-10 flex flex-col justify-center px-12 text-white">
           <div className="mb-8">
-            <h1 className="text-5xl font-bold mb-4 leading-tight">
+            <h1 className="text-5xl font-bold mb-4 leading-tight text-white">
               Create New
               <span className="text-secondary block">User Account</span>
             </h1>
-            <p className="text-xl text-gray-300 leading-relaxed">
+            <p className="text-xl text-gray-200 leading-relaxed">
               Add team members and clients to your agency platform with role-based access control.
             </p>
           </div>
@@ -126,8 +126,8 @@ const Register: React.FC = () => {
                 <UserPlus className="h-6 w-6 text-secondary" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">Role-Based Access</h3>
-                <p className="text-gray-300">Assign specific roles and permissions</p>
+                <h3 className="font-semibold text-lg text-white">Role-Based Access</h3>
+                <p className="text-gray-200">Assign specific roles and permissions</p>
               </div>
             </div>
             
@@ -136,8 +136,8 @@ const Register: React.FC = () => {
                 <Building2 className="h-6 w-6 text-secondary" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">Tenant Assignment</h3>
-                <p className="text-gray-300">Associate users with specific client tenants</p>
+                <h3 className="font-semibold text-lg text-white">Tenant Assignment</h3>
+                <p className="text-gray-200">Associate users with specific client tenants</p>
               </div>
             </div>
             
@@ -146,8 +146,8 @@ const Register: React.FC = () => {
                 <Shield className="h-6 w-6 text-secondary" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">Secure Access</h3>
-                <p className="text-gray-300">Enterprise-grade security and data isolation</p>
+                <h3 className="font-semibold text-lg text-white">Secure Access</h3>
+                <p className="text-gray-200">Enterprise-grade security and data isolation</p>
               </div>
             </div>
           </div>
@@ -155,7 +155,7 @@ const Register: React.FC = () => {
       </div>
 
       {/* Right side - Registration Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8">
+      <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <div className="flex justify-center mb-6">
