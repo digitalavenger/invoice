@@ -46,8 +46,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchUserProfile = async (uid: string) => {
     try {
       const userDoc = await getDoc(doc(db, 'users', uid));
+      
       if (userDoc.exists()) {
         const profile = { id: userDoc.id, ...userDoc.data() } as UserProfile;
+        
+        // Check if this user should be converted to super admin
+        const usersQuery = query(collection(db, 'users'));
+        const usersSnapshot = await getDocs(usersQuery);
+        const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UserProfile[];
+        
+        // Check if there are any super admins
+        const hasSuperAdmin = allUsers.some(user => user.role === UserRole.SUPER_ADMIN);
+        
+        // If no super admin exists and this is an existing user, convert them to super admin
+        if (!hasSuperAdmin) {
+          console.log('No super admin found, converting user to super admin:', profile.email);
+          
+          const superAdminProfile: Partial<UserProfile> = {
+            role: UserRole.SUPER_ADMIN,
+            permissions: ROLE_PERMISSIONS[UserRole.SUPER_ADMIN],
+            isActive: true,
+            tenantId: undefined, // Super admin has no tenant
+            updatedAt: new Date() as any
+          };
+          
+          await updateDoc(doc(db, 'users', uid), superAdminProfile);
+          
+          // Update local profile
+          const updatedProfile = { ...profile, ...superAdminProfile };
+          setUserProfile(updatedProfile);
+          
+          // Update last login
+          await updateDoc(doc(db, 'users', uid), {
+            lastLogin: new Date()
+          });
+          
+          setCurrentTenant(null);
+          setCurrentSubscription(null);
+          return updatedProfile;
+        }
         
         // Check if user is active
         if (!profile.isActive) {
@@ -72,7 +109,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         return profile;
       } else {
-        // Check if this is the first user (super admin)
+        // This is a new user from Firebase Auth but no profile exists
+        // Check if this should be the first super admin
         const usersQuery = query(collection(db, 'users'));
         const usersSnapshot = await getDocs(usersQuery);
         

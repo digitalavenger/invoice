@@ -62,19 +62,23 @@ export interface Payment {
 export enum UserRole {
   SUPER_ADMIN = 'super_admin',
   TENANT_ADMIN = 'tenant_admin',
+  ADMIN = 'admin',
   EMPLOYEE = 'employee',
+  CLIENT = 'client',
   CLIENT_USER = 'client_user'
 }
 
 export enum Permission {
   // Super Admin permissions
   MANAGE_ALL_TENANTS = 'manage_all_tenants',
+  MANAGE_TENANTS = 'manage_tenants',
   VIEW_ALL_ANALYTICS = 'view_all_analytics',
   MANAGE_SUBSCRIPTIONS = 'manage_subscriptions',
   MANAGE_PAYMENTS = 'manage_payments',
   
   // Tenant Admin permissions
   MANAGE_TENANT_USERS = 'manage_tenant_users',
+  MANAGE_USERS = 'manage_users',
   MANAGE_TENANT_SETTINGS = 'manage_tenant_settings',
   VIEW_TENANT_ANALYTICS = 'view_tenant_analytics',
   
@@ -274,14 +278,37 @@ export interface SuperAdminAnalytics {
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   [UserRole.SUPER_ADMIN]: [
     Permission.MANAGE_ALL_TENANTS,
+    Permission.MANAGE_TENANTS,
     Permission.VIEW_ALL_ANALYTICS,
     Permission.MANAGE_SUBSCRIPTIONS,
     Permission.MANAGE_PAYMENTS,
     Permission.MANAGE_TENANT_USERS,
+    Permission.MANAGE_USERS,
     Permission.VIEW_DASHBOARD
   ],
   [UserRole.TENANT_ADMIN]: [
     Permission.MANAGE_TENANT_USERS,
+    Permission.MANAGE_USERS,
+    Permission.MANAGE_TENANT_SETTINGS,
+    Permission.VIEW_TENANT_ANALYTICS,
+    Permission.VIEW_LEADS,
+    Permission.CREATE_LEADS,
+    Permission.EDIT_LEADS,
+    Permission.DELETE_LEADS,
+    Permission.MANAGE_LEAD_SETTINGS,
+    Permission.EXPORT_LEADS,
+    Permission.VIEW_INVOICES,
+    Permission.CREATE_INVOICES,
+    Permission.EDIT_INVOICES,
+    Permission.DELETE_INVOICES,
+    Permission.VIEW_CUSTOMERS,
+    Permission.MANAGE_CUSTOMERS,
+    Permission.MANAGE_INVOICE_SETTINGS,
+    Permission.VIEW_DASHBOARD
+  ],
+  [UserRole.ADMIN]: [
+    Permission.MANAGE_TENANT_USERS,
+    Permission.MANAGE_USERS,
     Permission.MANAGE_TENANT_SETTINGS,
     Permission.VIEW_TENANT_ANALYTICS,
     Permission.VIEW_LEADS,
@@ -309,6 +336,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.EDIT_INVOICES,
     Permission.VIEW_CUSTOMERS,
     Permission.MANAGE_CUSTOMERS,
+    Permission.VIEW_DASHBOARD
+  ],
+  [UserRole.CLIENT]: [
+    Permission.VIEW_LEADS,
+    Permission.EDIT_LEADS,
     Permission.VIEW_DASHBOARD
   ],
   [UserRole.CLIENT_USER]: [
