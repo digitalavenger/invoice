@@ -42,65 +42,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
   const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initializing, setInitializing] = useState(true);
 
-  const fetchUserProfile = async (uid: string) => {
+  const checkAndCreateSuperAdmin = async (uid: string, email: string): Promise<UserProfile> => {
+    try {
+      // Check if any super admin exists
+      const usersQuery = query(collection(db, 'users'));
+      const usersSnapshot = await getDocs(usersQuery);
+      const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UserProfile[];
+      
+      const hasSuperAdmin = allUsers.some(user => user.role === UserRole.SUPER_ADMIN);
+      
+      if (!hasSuperAdmin) {
+        console.log('Creating first super admin for:', email);
+        
+        const superAdminProfile: Omit<UserProfile, 'id'> = {
+          uid,
+          email,
+          name: email.split('@')[0] || 'Super Admin',
+          role: UserRole.SUPER_ADMIN,
+          permissions: ROLE_PERMISSIONS[UserRole.SUPER_ADMIN],
+          isActive: true,
+          createdAt: new Date() as any,
+          updatedAt: new Date() as any,
+          lastLogin: new Date() as any
+        };
+        
+        await setDoc(doc(db, 'users', uid), superAdminProfile);
+        return { id: uid, ...superAdminProfile };
+      }
+      
+      throw new Error('User profile not found and super admin already exists');
+    } catch (error) {
+      console.error('Error in checkAndCreateSuperAdmin:', error);
+      throw error;
+    }
+  };
+
+  const fetchUserProfile = async (uid: string): Promise<UserProfile | null> => {
     try {
       const userDoc = await getDoc(doc(db, 'users', uid));
       
       if (userDoc.exists()) {
         const profile = { id: userDoc.id, ...userDoc.data() } as UserProfile;
         
-        // Check if this user should be converted to super admin
-        const usersQuery = query(collection(db, 'users'));
-        const usersSnapshot = await getDocs(usersQuery);
-        const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UserProfile[];
-        
-        // Check if there are any super admins
-        const hasSuperAdmin = allUsers.some(user => user.role === UserRole.SUPER_ADMIN);
-        
-        // If no super admin exists and this is an existing user, convert them to super admin
-        if (!hasSuperAdmin) {
-          console.log('No super admin found, converting user to super admin:', profile.email);
-          
-          const superAdminProfile: Partial<UserProfile> = {
-            role: UserRole.SUPER_ADMIN,
-            permissions: ROLE_PERMISSIONS[UserRole.SUPER_ADMIN],
-            isActive: true,
-            tenantId: undefined, // Super admin has no tenant
-            updatedAt: new Date() as any
-          };
-          
-          await updateDoc(doc(db, 'users', uid), superAdminProfile);
-          
-          // Update local profile
-          const updatedProfile = { ...profile, ...superAdminProfile };
-          setUserProfile(updatedProfile);
-          
-          // Update last login
-          await updateDoc(doc(db, 'users', uid), {
-            lastLogin: new Date()
-          });
-          
-          setCurrentTenant(null);
-          setCurrentSubscription(null);
-          return updatedProfile;
-        }
-        
-        // Check if user is active
-        if (!profile.isActive) {
-          setUserProfile(profile);
-          return profile;
-        }
-        
-        setUserProfile(profile);
-        
         // Update last login
         await updateDoc(doc(db, 'users', uid), {
           lastLogin: new Date()
         });
         
+        setUserProfile(profile);
+        
         // Fetch tenant and subscription if user has one
-        if (profile.tenantId) {
+        if (profile.tenantId && profile.role !== UserRole.SUPER_ADMIN) {
           await fetchTenantData(profile.tenantId);
         } else {
           setCurrentTenant(null);
@@ -109,29 +103,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         return profile;
       } else {
-        // This is a new user from Firebase Auth but no profile exists
-        // Check if this should be the first super admin
-        const usersQuery = query(collection(db, 'users'));
-        const usersSnapshot = await getDocs(usersQuery);
-        
-        if (usersSnapshot.empty) {
-          // First user becomes super admin
-          const superAdminProfile: Omit<UserProfile, 'id'> = {
-            uid,
-            email: currentUser?.email || '',
-            name: currentUser?.email?.split('@')[0] || 'Super Admin',
-            role: UserRole.SUPER_ADMIN,
-            permissions: ROLE_PERMISSIONS[UserRole.SUPER_ADMIN],
-            isActive: true,
-            createdAt: new Date() as any,
-            updatedAt: new Date() as any
-          };
-          
-          await setDoc(doc(db, 'users', uid), superAdminProfile);
-          setUserProfile({ id: uid, ...superAdminProfile });
+        // Try to create super admin if no profile exists
+        if (currentUser?.email) {
+          const profile = await checkAndCreateSuperAdmin(uid, currentUser.email);
+          setUserProfile(profile);
           setCurrentTenant(null);
           setCurrentSubscription(null);
-          return { id: uid, ...superAdminProfile };
+          return profile;
         }
       }
     } catch (error) {
@@ -170,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     const result = await signInWithEmailAndPassword(auth, email, password);
-    await fetchUserProfile(result.user.uid);
+    // Profile will be fetched in the auth state change listener
   };
 
   const register = async (email: string, password: string, userData: Partial<UserProfile>) => {
@@ -235,19 +213,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('Auth state changed:', user?.email);
       setCurrentUser(user);
+      
       if (user) {
-        await fetchUserProfile(user.uid);
+        try {
+          await fetchUserProfile(user.uid);
+        } catch (error) {
+          console.error('Error fetching profile:', error);
+          setUserProfile(null);
+          setCurrentTenant(null);
+          setCurrentSubscription(null);
+        }
       } else {
         setUserProfile(null);
         setCurrentTenant(null);
         setCurrentSubscription(null);
       }
+      
+      if (initializing) {
+        setInitializing(false);
+      }
       setLoading(false);
     });
 
     return unsubscribe;
-  }, []);
+  }, [initializing]);
+
+  // Don't render children until we've finished initializing
+  if (initializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   const value = {
     currentUser,
@@ -267,7 +267,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

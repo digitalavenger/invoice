@@ -20,12 +20,12 @@ import { Permission, UserRole } from './types';
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router future={{ v7_relativeSplatPath: true }}>
         <div className="min-h-screen bg-gray-50">
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={
-              <ProtectedRoute requiredPermission={Permission.MANAGE_TENANT_USERS}>
+              <ProtectedRoute requiredPermission={Permission.MANAGE_USERS}>
                 <Register />
               </ProtectedRoute>
             } />
@@ -114,7 +114,7 @@ function App() {
             <Route
               path="/admin/tenants"
               element={
-                <ProtectedRoute requiredPermission={Permission.MANAGE_ALL_TENANTS}>
+                <ProtectedRoute requiredPermission={Permission.MANAGE_TENANTS}>
                   <Layout>
                     <AdminTenantsPage />
                   </Layout>
@@ -124,7 +124,7 @@ function App() {
             <Route
               path="/admin/users"
               element={
-                <ProtectedRoute requiredPermission={Permission.MANAGE_TENANT_USERS}>
+                <ProtectedRoute requiredPermission={Permission.MANAGE_USERS}>
                   <Layout>
                     <AdminUsersPage />
                   </Layout>
@@ -146,7 +146,7 @@ const DashboardRouter: React.FC = () => {
     return <SuperAdminDashboard />;
   }
   
-  if (userProfile?.role === UserRole.CLIENT_USER) {
+  if (userProfile?.role === UserRole.CLIENT || userProfile?.role === UserRole.CLIENT_USER) {
     return <ClientDashboard />;
   }
   
