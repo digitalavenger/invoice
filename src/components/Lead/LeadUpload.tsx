@@ -12,7 +12,7 @@ interface LeadUploadProps {
 }
 
 const LeadUpload: React.FC<LeadUploadProps> = ({ onClose, onUploadComplete }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, currentTenant } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +27,7 @@ const LeadUpload: React.FC<LeadUploadProps> = ({ onClose, onUploadComplete }) =>
   };
 
   const handleUpload = async () => {
-    if (!file || !currentUser) {
+    if (!file || !currentUser || !currentTenant?.id) {
       setError('Please select a file and ensure you are logged in.');
       return;
     }
@@ -47,9 +47,9 @@ const LeadUpload: React.FC<LeadUploadProps> = ({ onClose, onUploadComplete }) =>
           return;
         }
 
-        const BATCH_SIZE = 500; // Firestore batch limit
+        const BATCH_SIZE = 500;
         const totalBatches = Math.ceil(leads.length / BATCH_SIZE);
-        const leadsCollectionRef = collection(db, `users/${currentUser.uid}/leads`);
+        const leadsCollectionRef = collection(db, 'leads');
 
         try {
           for (let i = 0; i < totalBatches; i++) {
@@ -57,9 +57,7 @@ const LeadUpload: React.FC<LeadUploadProps> = ({ onClose, onUploadComplete }) =>
             const chunk = leads.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
 
             chunk.forEach((row) => {
-              // Basic validation for required fields
               if (!row.name || !row.mobileNumber || !row.emailAddress) {
-                // Silently skip rows with missing essential data or throw an error
                 console.warn("Skipping row due to missing data:", row);
                 return; 
               }
@@ -76,9 +74,10 @@ const LeadUpload: React.FC<LeadUploadProps> = ({ onClose, onUploadComplete }) =>
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
                 userId: currentUser.uid,
+                tenantId: currentTenant.id,
               };
               
-              const leadDocRef = doc(leadsCollectionRef); // Create a new doc reference
+              const leadDocRef = doc(leadsCollectionRef);
               batch.set(leadDocRef, leadData);
             });
 

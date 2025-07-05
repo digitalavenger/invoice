@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './components/Auth/Login';
@@ -9,6 +9,7 @@ import InvoicesPage from './pages/InvoicesPage';
 import CustomersPage from './pages/CustomersPage';
 import SettingsPage from './pages/SettingsPage';
 import DashboardPage from './pages/DashboardPage';
+import ClientDashboard from './pages/ClientDashboard';
 import LeadsPage from './pages/LeadsPage';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import AdminTenantsPage from './pages/AdminTenantsPage';
@@ -143,6 +144,10 @@ const DashboardRouter: React.FC = () => {
   
   if (userProfile?.role === UserRole.SUPER_ADMIN) {
     return <SuperAdminDashboard />;
+  }
+  
+  if (userProfile?.role === UserRole.CLIENT_USER) {
+    return <ClientDashboard />;
   }
   
   return <DashboardPage />;

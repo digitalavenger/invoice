@@ -139,7 +139,7 @@ export interface UserProfile {
 // Application Data Types
 export interface CompanySettings {
   id?: string;
-  tenantId: string;
+  tenantId?: string;
   name: string;
   address: string;
   phone: string;
@@ -155,21 +155,21 @@ export interface CompanySettings {
   logoUrl?: string;
   logoBase64?: string;
   invoicePrefix?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }
 
 export interface Customer {
   id?: string;
-  tenantId: string;
+  tenantId?: string;
   userId: string;
   name: string;
   email: string;
   phone: string;
   address: string;
   gst?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }
 
 export interface InvoiceItem {
@@ -184,12 +184,12 @@ export interface InvoiceItem {
 
 export interface Invoice {
   id?: string;
-  tenantId: string;
+  tenantId?: string;
   userId: string;
   invoiceNumber: string;
   customerId: string;
   customer: {
-    id: string;
+    id?: string;
     name: string;
     email: string;
     phone: string;
@@ -210,21 +210,21 @@ export interface Invoice {
 
 export interface ServiceOption {
   id: string;
-  tenantId: string;
+  tenantId?: string;
   name: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }
 
 export interface StatusOption {
   id: string;
-  tenantId: string;
+  tenantId?: string;
   name: string;
   color: string;
   order: number;
   isDefault?: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }
 
 export enum LeadStatus {
@@ -236,7 +236,7 @@ export enum LeadStatus {
 
 export interface Lead {
   id?: string;
-  tenantId: string;
+  tenantId?: string;
   userId: string;
   leadDate: string;
   name: string;
@@ -277,6 +277,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     Permission.VIEW_ALL_ANALYTICS,
     Permission.MANAGE_SUBSCRIPTIONS,
     Permission.MANAGE_PAYMENTS,
+    Permission.MANAGE_TENANT_USERS,
     Permission.VIEW_DASHBOARD
   ],
   [UserRole.TENANT_ADMIN]: [
@@ -312,6 +313,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
   [UserRole.CLIENT_USER]: [
     Permission.VIEW_LEADS,
+    Permission.EDIT_LEADS,
     Permission.VIEW_DASHBOARD
   ]
 };

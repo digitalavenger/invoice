@@ -24,6 +24,9 @@ export const useTenantData = <T extends { id?: string; tenantId?: string; userId
       } else if (userProfile?.tenantId) {
         // Fallback to user's tenantId if currentTenant is not loaded
         q = query(collectionRef, where('tenantId', '==', userProfile.tenantId));
+      } else {
+        // For users without tenant (like super admin), filter by userId
+        q = query(collectionRef, where('userId', '==', currentUser.uid));
       }
       
       // Add ordering if the collection supports it

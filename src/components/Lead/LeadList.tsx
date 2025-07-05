@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy, Timestamp } from 'firebase/firestore'; // Added Timestamp import
+import { collection, getDocs, deleteDoc, doc, updateDoc, query, orderBy, Timestamp, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../contexts/AuthContext';
 import { Lead, ServiceOption, StatusOption } from '../../types';
@@ -12,33 +12,32 @@ interface LeadListProps {
 }
 
 const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, currentTenant } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  // Filter states
   const [filterDate, setFilterDate] = useState('');
   const [filterStatus, setFilterStatus] = useState<string | ''>('');
-  const [filterService, setFilterService] = useState<string | ''>(''); // Changed to string for dynamic services
-  const [filterFollowupDate, setFilterFollowupDate] = useState(''); // NEW: Filter for followup date
-
-  // Dynamic options for filters
+  const [filterService, setFilterService] = useState<string | ''>('');
+  const [filterFollowupDate, setFilterFollowupDate] = useState('');
   const [availableStatuses, setAvailableStatuses] = useState<StatusOption[]>([]);
-  const [availableServicesForFilter, setAvailableServicesForFilter] = useState<ServiceOption[]>([]); // For filter dropdown
+  const [availableServicesForFilter, setAvailableServicesForFilter] = useState<ServiceOption[]>([]);
 
   useEffect(() => {
-    if (currentUser?.uid) {
+    if (currentUser?.uid && currentTenant?.id) {
       fetchLeads();
       fetchAvailableStatuses();
       fetchAvailableServicesForFilter();
     }
-  }, [currentUser]);
+  }, [currentUser, currentTenant]);
 
   const fetchLeads = async () => {
+    if (!currentTenant?.id) return;
+    
     setLoading(true);
     try {
-      const leadsRef = collection(db, `users/${currentUser?.uid}/leads`);
-      const q = query(leadsRef, orderBy('createdAt', 'desc')); // Order by creation time
+      const leadsRef = collection(db, 'leads');
+      const q = query(leadsRef, where('tenantId', '==', currentTenant.id), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
       const leadsList = querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -56,37 +55,39 @@ const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
   };
 
   const fetchAvailableStatuses = async () => {
-    if (!currentUser?.uid) return;
+    if (!currentTenant?.id) return;
     try {
-      const statusesRef = collection(db, `users/${currentUser.uid}/status_options`);
-      const q = query(statusesRef, orderBy('order', 'asc'), orderBy('createdAt', 'asc'));
+      const statusesRef = collection(db, 'status_options');
+      const q = query(statusesRef, where('tenantId', '==', currentTenant.id), orderBy('order', 'asc'), orderBy('createdAt', 'asc'));
       const querySnapshot = await getDocs(q);
       const statusesList = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as StatusOption[];
       setAvailableStatuses(statusesList);
     } catch (error) {
       console.error('Error fetching available statuses:', error);
       setAvailableStatuses([
-        { id: 'default_created', name: 'Created', order: 1, isDefault: true, color: '#2563EB' },
-        { id: 'default_followup', name: 'Followup', order: 2, color: '#FBBF24' },
-        { id: 'default_client', name: 'Client', order: 3, color: '#10B981' },
-        { id: 'default_rejected', name: 'Rejected', order: 4, color: '#EF4444' },
+        { id: 'default_created', name: 'Created', order: 1, isDefault: true, color: '#2563EB', tenantId: currentTenant?.id || '', createdAt: new Date() as any, updatedAt: new Date() as any },
+        { id: 'default_followup', name: 'Followup', order: 2, color: '#FBBF24', tenantId: currentTenant?.id || '', createdAt: new Date() as any, updatedAt: new Date() as any },
+        { id: 'default_client', name: 'Client', order: 3, color: '#10B981', tenantId: currentTenant?.id || '', createdAt: new Date() as any, updatedAt: new Date() as any },
+        { id: 'default_rejected', name: 'Rejected', order: 4, color: '#EF4444', tenantId: currentTenant?.id || '', createdAt: new Date() as any, updatedAt: new Date() as any },
       ]);
     }
   };
 
   const fetchAvailableServicesForFilter = async () => {
-    if (!currentUser?.uid) return;
+    if (!currentTenant?.id) return;
     try {
-      const servicesRef = collection(db, `users/${currentUser.uid}/service_options`);
-      const q = query(servicesRef, orderBy('createdAt', 'asc'));
+      const servicesRef = collection(db, 'service_options');
+      const q = query(servicesRef, where('tenantId', '==', currentTenant.id), orderBy('createdAt', 'asc'));
       const querySnapshot = await getDocs(q);
-      const servicesList = querySnapshot.docs.map(d => ({ id: d.id, name: d.data().name })) as ServiceOption[];
+      const servicesList = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as ServiceOption[];
       setAvailableServicesForFilter(servicesList);
     } catch (error) {
       console.error('Error fetching available services for filter:', error);
       setAvailableServicesForFilter([
-        { id: 'seo', name: 'SEO' }, { id: 'ppc', name: 'PPC' },
-        { id: 'smm', name: 'Social Media Marketing' }, { id: 'other', name: 'Other' }
+        { id: 'seo', name: 'SEO', tenantId: currentTenant?.id || '' },
+        { id: 'ppc', name: 'PPC', tenantId: currentTenant?.id || '' },
+        { id: 'smm', name: 'Social Media Marketing', tenantId: currentTenant?.id || '' },
+        { id: 'other', name: 'Other', tenantId: currentTenant?.id || '' }
       ]);
     }
   };
@@ -95,7 +96,7 @@ const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
     if (!window.confirm('Are you sure you want to delete this lead?')) return;
     if (!currentUser?.uid) return;
     try {
-      await deleteDoc(doc(db, `users/${currentUser.uid}/leads`, leadId));
+      await deleteDoc(doc(db, 'leads', leadId));
       setLeads(prev => prev.filter(lead => lead.id !== leadId));
     } catch (error) {
       console.error('Error deleting lead:', error);
@@ -105,9 +106,9 @@ const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
   const handleStatusChange = async (leadId: string, newStatus: string) => {
     if (!currentUser?.uid) return;
     try {
-      await updateDoc(doc(db, `users/${currentUser.uid}/leads`, leadId), {
+      await updateDoc(doc(db, 'leads', leadId), {
         leadStatus: newStatus,
-        updatedAt: Timestamp.now(), 
+        updatedAt: Timestamp.now(),
       });
       setLeads(prev =>
         prev.map(lead => (lead.id === leadId ? { ...lead, leadStatus: newStatus } : lead))
@@ -117,16 +118,14 @@ const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
     }
   };
 
-  // *** NEW FUNCTION TO HANDLE INLINE DATE UPDATES ***
   const handleFollowupDateChange = async (leadId: string, newDate: string) => {
     if (!currentUser?.uid || !newDate) return;
     try {
-      const leadRef = doc(db, `users/${currentUser.uid}/leads`, leadId);
+      const leadRef = doc(db, 'leads', leadId);
       await updateDoc(leadRef, {
         lastFollowUpDate: newDate,
         updatedAt: Timestamp.now(),
       });
-      // Update local state to show the change instantly without a full reload
       setLeads(prevLeads =>
         prevLeads.map(lead =>
           lead.id === leadId ? { ...lead, lastFollowUpDate: newDate } : lead
@@ -176,7 +175,6 @@ const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
       </div>
 
       <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Filters remain unchanged */}
         <div>
           <label htmlFor="searchLeads" className="block text-sm font-medium text-gray-700 mb-1">Search Leads</label>
           <div className="relative">
@@ -245,8 +243,6 @@ const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
                     </select>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={lead.notes}>{lead.notes || 'N/A'}</td>
-                  
-                  {/* *** MODIFIED CELL FOR INLINE DATE EDITING *** */}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <input
                       type="date"
@@ -255,7 +251,6 @@ const LeadList: React.FC<LeadListProps> = ({ onEdit, onNew }) => {
                       className="block w-full border border-gray-300 rounded-md shadow-sm py-1 px-2 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
                     />
                   </td>
-
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button onClick={() => onEdit(lead)} className="text-accent hover:text-blue-900 mr-3" title="Edit Lead">
                       <Edit className="h-5 w-5" />

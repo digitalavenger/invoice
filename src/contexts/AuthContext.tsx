@@ -48,6 +48,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userDoc = await getDoc(doc(db, 'users', uid));
       if (userDoc.exists()) {
         const profile = { id: userDoc.id, ...userDoc.data() } as UserProfile;
+        
+        // Check if user is active
+        if (!profile.isActive) {
+          setUserProfile(profile);
+          return profile;
+        }
+        
         setUserProfile(profile);
         
         // Update last login
@@ -183,7 +190,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const now = new Date();
     const endDate = currentSubscription.endDate.toDate();
     
-    return currentSubscription.status === SubscriptionStatus.ACTIVE && endDate > now;
+    return (currentSubscription.status === SubscriptionStatus.ACTIVE || 
+            currentSubscription.status === SubscriptionStatus.TRIAL) && 
+           endDate > now;
   };
 
   useEffect(() => {

@@ -1,27 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Lead, ServiceOption, StatusOption } from '../../types';
 import { db } from '../../firebase/config';
-import { collection, addDoc, updateDoc, doc, Timestamp, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, Timestamp, query, orderBy, getDocs, where } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { Save, X } from 'lucide-react';
 
 interface LeadFormProps {
-  currentLead: Lead | null; // Changed prop name to 'currentLead'
+  currentLead: Lead | null;
   onSave: () => void;
   onCancel: () => void;
 }
 
 const LeadForm: React.FC<LeadFormProps> = ({ currentLead, onSave, onCancel }) => {
-  const { currentUser } = useAuth();
-  // The state 'lead' is now the single source of truth for the form's data.
-  const [lead, setLead] = useState<Partial<Lead>>({}); 
+  const { currentUser, currentTenant } = useAuth();
+  const [lead, setLead] = useState<Partial<Lead>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availableServices, setAvailableServices] = useState<ServiceOption[]>([]);
   const [availableStatuses, setAvailableStatuses] = useState<StatusOption[]>([]);
 
   useEffect(() => {
-    // This effect correctly populates the form for editing or resets it for a new lead.
     if (currentLead) {
       setLead(currentLead);
     } else {
@@ -39,19 +37,19 @@ const LeadForm: React.FC<LeadFormProps> = ({ currentLead, onSave, onCancel }) =>
   }, [currentLead]);
 
   useEffect(() => {
-    if (currentUser?.uid) {
+    if (currentUser?.uid && currentTenant?.id) {
       fetchAvailableServices();
       fetchAvailableStatuses();
     }
-  }, [currentUser]);
+  }, [currentUser, currentTenant]);
 
   const fetchAvailableServices = async () => {
-    if (!currentUser?.uid) return;
+    if (!currentTenant?.id) return;
     try {
-      const servicesRef = collection(db, `users/${currentUser.uid}/service_options`);
-      const q = query(servicesRef, orderBy('createdAt', 'asc'));
+      const servicesRef = collection(db, 'service_options');
+      const q = query(servicesRef, where('tenantId', '==', currentTenant.id), orderBy('createdAt', 'asc'));
       const querySnapshot = await getDocs(q);
-      const servicesList = querySnapshot.docs.map(d => ({ id: d.id, name: d.data().name })) as ServiceOption[];
+      const servicesList = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as ServiceOption[];
       setAvailableServices(servicesList);
     } catch (error) {
       console.error('Error fetching available services:', error);
@@ -60,15 +58,14 @@ const LeadForm: React.FC<LeadFormProps> = ({ currentLead, onSave, onCancel }) =>
   };
 
   const fetchAvailableStatuses = async () => {
-    if (!currentUser?.uid) return;
+    if (!currentTenant?.id) return;
     try {
-      const statusesRef = collection(db, `users/${currentUser.uid}/status_options`);
-      const q = query(statusesRef, orderBy('order', 'asc'), orderBy('createdAt', 'asc'));
+      const statusesRef = collection(db, 'status_options');
+      const q = query(statusesRef, where('tenantId', '==', currentTenant.id), orderBy('order', 'asc'), orderBy('createdAt', 'asc'));
       const querySnapshot = await getDocs(q);
       const statusesList = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as StatusOption[];
       setAvailableStatuses(statusesList);
       
-      // Set default status only for new leads
       if (!currentLead && statusesList.length > 0) {
         const defaultStatus = statusesList.find(s => s.isDefault) || statusesList[0];
         setLead(prev => ({ ...prev, leadStatus: defaultStatus.name }));
@@ -104,7 +101,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ currentLead, onSave, onCancel }) =>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser?.uid || !validateForm()) {
+    if (!currentUser?.uid || !currentTenant?.id || !validateForm()) {
       return;
     }
 
@@ -112,16 +109,15 @@ const LeadForm: React.FC<LeadFormProps> = ({ currentLead, onSave, onCancel }) =>
     const dataToSave = {
       ...lead,
       userId: currentUser.uid,
+      tenantId: currentTenant.id,
       updatedAt: Timestamp.now(),
     };
 
     try {
       if (currentLead?.id) {
-        // This is the **UPDATE** logic. It uses the ID from the `currentLead` prop.
-        await updateDoc(doc(db, `users/${currentUser.uid}/leads`, currentLead.id), dataToSave);
+        await updateDoc(doc(db, 'leads', currentLead.id), dataToSave);
       } else {
-        // This is the **CREATE** logic.
-        await addDoc(collection(db, `users/${currentUser.uid}/leads`), {
+        await addDoc(collection(db, 'leads'), {
           ...dataToSave,
           createdAt: Timestamp.now(),
         });
